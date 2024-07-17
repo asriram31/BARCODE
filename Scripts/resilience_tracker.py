@@ -123,7 +123,7 @@ def check_resilience(file, channel, R_offset, percent_threshold_loss, percent_th
     avg_percent_change = np.mean(largest_void_lst[start_index:stop_index])/percent_gain_initial_list
     max_void_size = max(largest_void_lst)/(len(image[0,0,:])*len(image[0,:,0]))
     island_size = max(island_area_lst)/(len(image[0,0,:])*len(image[0,:,0]))
-    island_movement = np.array(island_position_lst[0]) - np.array(island_position_lst[-1])
+    island_movement = np.array(island_position_lst)[:-1,:] - np.array(island_position_lst)[1:,:]
     island_speed = np.linalg.norm(island_movement,axis = 1)
     island_direction = np.arctan2(island_movement[:,1],island_movement[:,0])
     island_direction = island_direction[np.where(island_speed < 15)]

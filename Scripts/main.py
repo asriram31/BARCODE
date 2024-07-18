@@ -208,7 +208,7 @@ def process_directory(root_dir, config_data):
 def create_barcode(figpath, entry):
     # Define color mappings
     binary_colors = {0: [0, 0, 0], 1: [1, 1, 1]}  # Black for 0, white for 1
-    colormap = plt.get_cmap('viridis')  # Colormap for floats
+    colormap = plt.get_cmap('plasma')  # Colormap for floats
 
     # channel, r, c, spanning, void_value, island_size, island_movement, void_growth, direct, avg_vel, avg_speed, avg_div, c_area1, c_area2 = entry
     channel = entry[0]

@@ -123,7 +123,11 @@ def check_resilience(file, channel, R_offset, percent_threshold_loss, percent_th
     avg_percent_change = np.mean(largest_void_lst[start_index:stop_index])/percent_gain_initial_list
     max_void_size = max(largest_void_lst)/(len(image[0,0,:])*len(image[0,:,0]))
     island_size = max(island_area_lst)/(len(image[0,0,:])*len(image[0,:,0]))
-    island_movement = np.array(island_position_lst[0]) - np.array(island_position_lst[-1])
+    island_movement = np.array(island_position_lst)[:-1,:] - np.array(island_position_lst)[1:,:]
+    island_speed = np.linalg.norm(island_movement,axis = 1)
+    island_direction = np.arctan2(island_movement[:,1],island_movement[:,0])
+    island_direction = island_direction[np.where(island_speed < 15)]
+    average_direction = np.average(island_direction)
     #Give judgement
     if avg_percent_change >= percent_threshold_loss and avg_percent_change <= percent_threshold_gain or max_void_size < 0.10:
         verdict = 1
@@ -132,12 +136,12 @@ def check_resilience(file, channel, R_offset, percent_threshold_loss, percent_th
     
     spanning = check_span(image, R_offset)
     
-    return verdict, fig, max_void_size, spanning, island_size, island_movement, avg_percent_change
+    return verdict, fig, max_void_size, spanning, island_size, average_direction, avg_percent_change
 
 def main():
     file = read_file(sys.argv[1])
     channel = read_file(sys.argv[2])
-    verdict, fig, void_value, spanning, island_size, island_movement, avg_percent_change = check_resilience(file, channel)
+    verdict, fig, void_value, spanning, island_size, average_direction, avg_percent_change = check_resilience(file, channel)
 
 if __name__ == "__main__":
     main()

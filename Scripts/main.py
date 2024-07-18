@@ -6,6 +6,7 @@ from coarse_tracker import check_coarse
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 from matplotlib import gridspec
 
 
@@ -90,8 +91,13 @@ def execute_htp(filepath, config_data):
         plt.close(rfig)
         plt.close(ffig)
         plt.close(cfig)
+
+        result = [channel, r, c, spanning, void_value, island_size, island_movement, void_growth, direct, avg_vel, avg_speed, avg_div, c_area1, c_area2]
+
+        figpath2 = os.path.join(fig_channel_dir_name, 'Barcode.png')
+        create_barcode(figpath2, result)
             
-        return [channel, r, c, void_value, spanning, island_size, island_movement, void_growth, direct, avg_vel, avg_speed, avg_div, c_area1, c_area2]
+        return result
     
     file = read_file(filepath, accept_dim)
 
@@ -109,11 +115,13 @@ def execute_htp(filepath, config_data):
         print('Total Channels:', channels)
         for channel in range(channels):
             print('Channel:', channel)
-            rfc.append(check(channel, resilience, flow, coarsening, r_data, f_data, c_data))
+            results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
+            rfc.append(results)
     
     else:
         print('Channel: ', channel_select)
-        rfc.append(check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data))
+        results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data)
+        rfc.append(results)
 
     return rfc
 
@@ -125,10 +133,9 @@ def remove_extension(filepath):
     if filepath.endswith('.nd2'):
         return filepath.removesuffix('.nd2')
 
-def writer(data, directory):
+def writer(output_filepath, data):
     if data:
-        headers = ['Channel', 'Resilience', 'Coarseness', 'Largest void', 'Span', 'Island Size', 'Island Movement', 'Void Growth', "Flow Direction", "Average Velocity", "Average Speed", "Average Divergence", 'Intensity Difference Area 1', 'Intensity Difference Area 2']
-        output_filepath = os.path.join(directory, "summary.csv")
+        headers = ['Channel', 'Resilience', 'Coarseness', 'Connectivity', 'Largest void', 'Island Size', 'Island Movement Direction', 'Void Size Change', "Flow Direction", "Average Velocity", "Average Speed", "Average Divergence", 'Intensity Difference Area 1', 'Intensity Difference Area 2']
         with open(output_filepath, 'w', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
             for entry in data:
@@ -164,7 +171,9 @@ def process_directory(root_dir, config_data):
         elapsed_time = end_time - start_time
         print('Time Elapsed:', elapsed_time)
 
-        writer(all_data, dir_name)
+        output_filepath = os.path.join(dir_name, filename + 'summary.csv')
+
+        writer(output_filepath, all_data)
     else: 
         all_data = []
         start_folder_time = time.time()
@@ -188,13 +197,57 @@ def process_directory(root_dir, config_data):
                 end_time = time.time()
                 elapsed_time = end_time - start_time
                 print('Time Elapsed:', elapsed_time)
-
-        writer(all_data, root_dir)
+        
+        output_filepath = os.path.join(root_dir, "summary.csv")
+        
+        writer(output_filepath, all_data)
         end_folder_time = time.time()
         elapsed_folder_time = end_folder_time - start_folder_time
         print('Time Elapsed to Process Folder:', elapsed_folder_time)
 
-        
+def create_barcode(figpath, entry):
+    # Define color mappings
+    binary_colors = {0: [0, 0, 0], 1: [1, 1, 1]}  # Black for 0, white for 1
+    colormap = plt.get_cmap('viridis')  # Colormap for floats
+
+    # channel, r, c, spanning, void_value, island_size, island_movement, void_growth, direct, avg_vel, avg_speed, avg_div, c_area1, c_area2 = entry
+    channel = entry[0]
+    binary_values = entry[1:4]
+    float_values = entry[4:]
+
+    # Define normalization limits of floating point values
+    bin_size_lim = [0, 1]
+    direct_lim = [-np.pi, np.pi]
+    void_growth_lim = [0, 5]
+    avg_vel_lim = [0, 10]
+    avg_speed_lim = [0, 10]
+    avg_div = [-1, 1]
+    i_area_lim = [0, 1]
+    limits = [bin_size_lim, bin_size_lim, direct_lim, void_growth_lim, direct_lim, avg_vel_lim, avg_speed_lim, avg_div, i_area_lim, i_area_lim]
+    
+    def normalize(x, min_float, max_float):
+        return (x - min_float) / (max_float - min_float)
+
+
+    
+    # Create the color barcode
+    barcode = []
+    for value in binary_values:
+        color = binary_colors[value]
+        barcode.append(color)
+    for entry_value_float, float_lim in zip(float_values, limits):
+        color = colormap(normalize(entry_value_float, float_lim[0], float_lim[1]))[:3]
+        barcode.append(color)
+    
+    # Convert to numpy array and reshape for plotting
+    barcode = np.array(barcode)
+    barcode_image = np.tile(barcode, (10, 1, 1))  # Repeat the barcode to make it visible
+
+    # Plot and save the barcode
+    plt.imshow(barcode_image, aspect='auto')
+    plt.axis('off')
+    plt.savefig(figpath, bbox_inches='tight', pad_inches=0)
+
 
 def main():
     abs_path = os.path.abspath(sys.argv[0])

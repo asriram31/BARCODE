@@ -92,9 +92,9 @@ def execute_htp(filepath, config_data):
         plt.close(ffig)
         plt.close(cfig)
 
-        result = [channel, r, c, spanning, void_value, island_size, island_movement, void_growth, direct, avg_vel, avg_speed, avg_div, c_area1, c_area2]
+        result = [channel, r, spanning, island_size, void_value, void_growth,  c, c_area1, c_area2, avg_vel, avg_speed, avg_div, island_movement, direct]
 
-        figpath2 = os.path.join(fig_channel_dir_name, 'Barcode.png')
+        figpath2 = os.path.join(fig_channel_dir_name, 'Channel ' + str(channel) + 'Barcode.png')
         create_barcode(figpath2, result)
             
         return result
@@ -135,7 +135,8 @@ def remove_extension(filepath):
 
 def writer(output_filepath, data):
     if data:
-        headers = ['Channel', 'Resilience', 'Coarseness', 'Connectivity', 'Largest void', 'Island Size', 'Island Movement Direction', 'Void Size Change', "Flow Direction", "Average Velocity", "Average Speed", "Average Divergence", 'Intensity Difference Area 1', 'Intensity Difference Area 2']
+        headers = ['Channel', 'Resilience', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intesity Difference Area 2', 'Average Velocity', 'Average Speed', 'Average Divergence', 'Island Movement Direction', 'Flow Direction']
+        # headers = ['Channel', 'Resilience', 'Coarseness', 'Connectivity', 'Largest void', 'Island Size', 'Island Movement Direction', 'Void Size Change', "Flow Direction", "Average Velocity", "Average Speed", "Average Divergence", 'Intensity Difference Area 1', 'Intensity Difference Area 2']
         with open(output_filepath, 'w', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
             for entry in data:
@@ -212,8 +213,10 @@ def create_barcode(figpath, entry):
 
     # channel, r, c, spanning, void_value, island_size, island_movement, void_growth, direct, avg_vel, avg_speed, avg_div, c_area1, c_area2 = entry
     channel = entry[0]
-    binary_values = entry[1:4]
-    float_values = entry[4:]
+    binary_indices = [1, 2, 6]
+    binary_values = [entry[val] for val in binary_indices]
+    float_indices = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13]
+    float_values = [entry[val] for val in float_indices]
 
     # Define normalization limits of floating point values
     bin_size_lim = [0, 1]
@@ -223,21 +226,19 @@ def create_barcode(figpath, entry):
     avg_speed_lim = [0, 10]
     avg_div = [-1, 1]
     i_area_lim = [0, 1]
-    limits = [bin_size_lim, bin_size_lim, direct_lim, void_growth_lim, direct_lim, avg_vel_lim, avg_speed_lim, avg_div, i_area_lim, i_area_lim]
+    limits = [bin_size_lim, bin_size_lim, void_growth_lim, i_area_lim, i_area_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim]
     
     def normalize(x, min_float, max_float):
         return (x - min_float) / (max_float - min_float)
-
-
     
     # Create the color barcode
-    barcode = []
-    for value in binary_values:
+    barcode = [None] * 13
+    for index, value in zip(binary_indices, binary_values):
         color = binary_colors[value]
-        barcode.append(color)
-    for entry_value_float, float_lim in zip(float_values, limits):
+        barcode[index - 1] = color
+    for f_index, entry_value_float, float_lim in zip(float_indices, float_values, limits):
         color = colormap(normalize(entry_value_float, float_lim[0], float_lim[1]))[:3]
-        barcode.append(color)
+        barcode[f_index - 1] = color
     
     # Convert to numpy array and reshape for plotting
     barcode = np.array(barcode)

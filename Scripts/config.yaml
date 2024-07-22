@@ -6,7 +6,8 @@ reader:
   flow: True
   coarsening: True
   verbose: True
-  accept_dim_images: True
+  accept_dim_images: False
+  accept_dim_channels: False
 
 # Settings to determine resilience parameters
 resilience_parameters:

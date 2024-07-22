@@ -9,10 +9,9 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib import gridspec
 
-
 def execute_htp(filepath, config_data):
     reader_data = config_data['reader']
-    channel_select, resilience, flow, coarsening, verbose, accept_dim = reader_data.values()
+    channel_select, resilience, flow, coarsening, verbose, accept_dim_im, accept_dim_channel = reader_data.values()
     r_data = config_data['resilience_parameters']
     f_data = config_data['flow_parameters']
     c_data = config_data['coarse_parameters']
@@ -99,7 +98,7 @@ def execute_htp(filepath, config_data):
             
         return result
     
-    file = read_file(filepath, accept_dim)
+    file = read_file(filepath, accept_dim_im)
 
     if (isinstance(file, np.ndarray) == False):
         return None
@@ -113,10 +112,14 @@ def execute_htp(filepath, config_data):
     
     if channel_select == -1:
         print('Total Channels:', channels)
-        for channel in range(channels):
-            print('Channel:', channel)
-            results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
-            rfc.append(results)
+        channel = channels - 1
+        # for channel in range(channels):
+        print('Channel:', channel)
+        #     if check_channel_dim(file[:,:,:,channel]) and not accept_dim_channel:
+        #         print('Channel too dim, not enough signal, skipping...')
+        #         continue
+        results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
+        rfc.append(results)
     
     else:
         print('Channel: ', channel_select)
@@ -136,7 +139,6 @@ def remove_extension(filepath):
 def writer(output_filepath, data):
     if data:
         headers = ['Channel', 'Resilience', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intesity Difference Area 2', 'Average Velocity', 'Average Speed', 'Average Divergence', 'Island Movement Direction', 'Flow Direction']
-        # headers = ['Channel', 'Resilience', 'Coarseness', 'Connectivity', 'Largest void', 'Island Size', 'Island Movement Direction', 'Void Size Change', "Flow Direction", "Average Velocity", "Average Speed", "Average Divergence", 'Intensity Difference Area 1', 'Intensity Difference Area 2']
         with open(output_filepath, 'w', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
             for entry in data:
@@ -180,13 +182,12 @@ def process_directory(root_dir, config_data):
         start_folder_time = time.time()
         for dirpath, dirnames, filenames in os.walk(root_dir):
     
-            dirnames[:] = [d for d in dirnames]
+            dirnames[:] = [d for d in dirnames if d not in ["To Be Tested", "Aditya", "htp-screening"]]
     
             for filename in filenames:
                 if filename.startswith('._'):
                     continue
                 file_path = os.path.join(dirpath, filename)
-                print(file_path)
                 start_time = time.time()
                 rfc_data = execute_htp(file_path, config_data)
                 if rfc_data == None:
@@ -249,6 +250,11 @@ def create_barcode(figpath, entry):
     plt.axis('off')
     plt.savefig(figpath, bbox_inches='tight', pad_inches=0)
 
+def check_channel_dim(image):
+    min_intensity = np.min(image)
+    mean_intensity = np.mean(image)
+    return 2 * np.exp(-1) * mean_intensity <= min_intensity
+
 
 def main():
     abs_path = os.path.abspath(sys.argv[0])
@@ -256,7 +262,6 @@ def main():
     if len(sys.argv) == 3:
         config_path = sys.argv[2]
     else:
-        # Update this with your filepath -- if your directory is htp-screening-main, use that as the highest level directory instead
         config_path = os.path.join(os.path.dirname(abs_path), 'config.yaml')
     with open(config_path, "r") as yamlfile:
         config_data = yaml.load(yamlfile, Loader=yaml.CLoader)

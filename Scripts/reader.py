@@ -11,7 +11,7 @@ def read_file(file_path, accept_dim = False):
     def check_first_frame_dim(file):
         min_intensity = np.min(file[0])
         mean_intensity = np.mean(file[0])
-        return 0.5 * mean_intensity <= min_intensity
+        return 2 * np.exp(-1) * mean_intensity <= min_intensity
 
     def bleach_correction(im):
         min_px_intensity = np.min(im)
@@ -47,7 +47,7 @@ def read_file(file_path, accept_dim = False):
                 images[j, :, :, i] = frame
                 
         return images
-    
+    print(file_path)
     if file_path.endswith('.tiff') or file_path.endswith('.tif'):
         file = iio.imread(file_path)
         file = np.reshape(file, (file.shape + (1,))) if len(file.shape) == 3 else file

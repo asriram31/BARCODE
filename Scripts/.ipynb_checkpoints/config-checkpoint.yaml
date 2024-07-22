@@ -6,7 +6,8 @@ reader:
   flow: True
   coarsening: True
   verbose: True
-  accept_dim_images: True
+  accept_dim_images: False
+  accept_dim_channels: False
 
 # Settings to determine resilience parameters
 resilience_parameters:
@@ -34,4 +35,5 @@ coarse_parameters:
     first_frame: 0
     last_frame: False
   threshold_percentage: 6 # Adjust for different objective lenses (5-7 for 60x, 1 for 20x, etc)
+  mean_mode_frames_percent: 10
   

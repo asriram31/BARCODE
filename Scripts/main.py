@@ -90,6 +90,7 @@ def execute_htp(filepath, config_data):
         plt.close(rfig)
         plt.close(ffig)
         plt.close(cfig)
+        plt.close(fig)
 
         result = [channel, r, spanning, island_size, void_value, void_growth,  c, c_area1, c_area2, avg_vel, avg_speed, avg_div, island_movement, direct]
 

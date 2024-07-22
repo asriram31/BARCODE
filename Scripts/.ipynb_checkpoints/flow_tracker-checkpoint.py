@@ -66,7 +66,12 @@ def check_flow(file, name, channel, min_corr_len, min_fraction, frame_stride, do
 
     images = file[:,:,:,channel]
 
-    positions = np.array([0, int(np.floor(len(images)/2)), len(images) - frame_stride])
+    end_point = len(images) - frame_stride:
+    while end_point <= 0: # Checking to see if frame_stride is too large
+        frame_stride = int(np.ceil(frame_stride / 2))
+        end_point = len(images) - frame_stride
+
+    positions = np.array([0, int(np.floor(len(images)/2)), end_point])
 
     # Error Checking: Empty Images
     if (images == 0).all():
@@ -82,7 +87,6 @@ def check_flow(file, name, channel, min_corr_len, min_fraction, frame_stride, do
             radii[i][j] = np.sqrt(xindices[i]**2 + yindices[j]**2)
 
     #For each consecutive pair
-    corrLens = np.zeros(len(images)-frame_stride)
     pos = 0
     xMeans = np.array([])
     yMeans = np.array([])
@@ -90,17 +94,21 @@ def check_flow(file, name, channel, min_corr_len, min_fraction, frame_stride, do
     vyMeans = np.array([])
     speeds = np.array([])
     divs = np.array([])
+
     
-    for beg in range(0,len(images)-frame_stride,frame_stride):
+    
+    for beg in range(0, end_point, frame_stride):
         end = beg + frame_stride
         arr = execute_opt_flow(images, beg, end, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices)
         xMeans, yMeans, vxMeans, vyMeans, speeds, divs = arr
         pos += 1
+    if end_point != len(images) - 1:
+        beg = len(images) - frame_stride
+        end = len(images) - 1
+        arr = execute_opt_flow(images, beg, end, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices)
+        xMeans, yMeans, vxMeans, vyMeans, speeds, divs = arr
 
-    beg = len(images) - frame_stride
-    end = len(images) - 1
-    arr = execute_opt_flow(images, beg, end, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices)
-    xMeans, yMeans, vxMeans, vyMeans, speeds, divs = arr
+    
     direct = math.atan2(yMeans.mean(), xMeans.mean())
     mean_div = divs.mean()
     # print("x dir: ", xMeans.mean(), "\n","y direc: ", yMeans.mean(), "\n","vx mean: ", vxMeans.mean(), "\n","vy mean: ", vyMeans.mean(), "\n", "angle:", direct, "\n", "divergence mean:", mean_div)

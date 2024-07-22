@@ -189,7 +189,12 @@ def process_directory(root_dir, config_data):
                     continue
                 file_path = os.path.join(dirpath, filename)
                 start_time = time.time()
-                rfc_data = execute_htp(file_path, config_data)
+                try:
+                    rfc_data = execute_htp(file_path, config_data)
+                except Exception as e:
+                    with open(os.path.join(root_dir, "failed_files_txt"), "a") as log_file:
+                        log_file.write(f"FileL {file_path}, Exception: {str(e)}\n")
+                    continue
                 if rfc_data == None:
                     continue
                 all_data.append([file_path])

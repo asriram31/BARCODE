@@ -66,7 +66,7 @@ def check_flow(file, name, channel, min_corr_len, min_fraction, frame_stride, do
 
     images = file[:,:,:,channel]
 
-    end_point = len(images) - frame_stride:
+    end_point = len(images) - frame_stride
     while end_point <= 0: # Checking to see if frame_stride is too large
         frame_stride = int(np.ceil(frame_stride / 2))
         end_point = len(images) - frame_stride

@@ -8,13 +8,15 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib import gridspec
+from writer import write_file, create_barcode
 
 def execute_htp(filepath, config_data):
     reader_data = config_data['reader']
-    channel_select, resilience, flow, coarsening, verbose, accept_dim_im, accept_dim_channel = reader_data.values()
+    channel_select, resilience, flow, coarsening, verbose, return_graphs, accept_dim_im, accept_dim_channel, excluded_dirs = reader_data.values()
     r_data = config_data['resilience_parameters']
     f_data = config_data['flow_parameters']
     c_data = config_data['coarse_parameters']
+    
 
     
     def check(channel, resilience, flow, coarse, resilience_data, flow_data, coarse_data):
@@ -60,7 +62,7 @@ def execute_htp(filepath, config_data):
             c_area2 = None
 
         figpath = os.path.join(fig_channel_dir_name, 'Summary Graphs.png')
-        if verbose == True:
+        if return_graphs == True:
             fig = plt.figure(figsize = (15, 5))
             gs = gridspec.GridSpec(1,3)
 
@@ -87,6 +89,7 @@ def execute_htp(filepath, config_data):
                 ax3.set_position([32.5/15, 1/10, 4/5, 4/5])
 
             plt.savefig(figpath)
+
         plt.close(rfig)
         plt.close(ffig)
         plt.close(cfig)
@@ -106,23 +109,26 @@ def execute_htp(filepath, config_data):
 
     channels = min(file.shape)
     
-    if (isinstance(channel_select, int) == False) or channel_select > channels:
-        raise ValueError("Please give correct channel input (-1 for all channels, 0 for channel 1, etc)")
+    if (isinstance(channel_select, int) == False and channel_select != False) or channel_select > channels or channel_select == None or (channels + channel_select < 0):
+        raise ValueError("Please give correct channel input (False for all channels, 0 for channel 1, -1 for the last channel, etc)")
     
     rfc = []
     
-    if channel_select == -1:
-        print('Total Channels:', channels)
-        channel = channels - 1
-        # for channel in range(channels):
-        print('Channel:', channel)
-        #     if check_channel_dim(file[:,:,:,channel]) and not accept_dim_channel:
-        #         print('Channel too dim, not enough signal, skipping...')
-        #         continue
+    if channel_select == False:
+        if verbose:
+            print('Total Channels:', channels)
+        for channel in range(channels):
+            if verbose:
+                print('Channel:', channel)
+            if check_channel_dim(file[:,:,:,channel]) and not accept_dim_channel and verbose:
+                print('Channel too dim, not enough signal, skipping...')
+                continue
         results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
         rfc.append(results)
     
     else:
+        if channel_select < 0:
+            channel_select = channels + channel_select
         print('Channel: ', channel_select)
         results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data)
         rfc.append(results)
@@ -137,27 +143,9 @@ def remove_extension(filepath):
     if filepath.endswith('.nd2'):
         return filepath.removesuffix('.nd2')
 
-def writer(output_filepath, data):
-    if data:
-        headers = ['Channel', 'Resilience', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intesity Difference Area 2', 'Average Velocity', 'Average Speed', 'Average Divergence', 'Island Movement Direction', 'Flow Direction']
-        with open(output_filepath, 'w', newline='') as csvfile:
-            csvwriter = csv.writer(csvfile)
-            for entry in data:
-                if isinstance(entry, list) and len(entry) == 1:
-                    # Write the file name
-                    csvwriter.writerow(entry)
-                    csvwriter.writerow(headers)  # Write headers after the filename
-                elif entry:
-                    # Write the headers if entry contains channel data
-                    csvwriter.writerow(headers)
-                    headers = []  # Ensure headers are only written once per file
-                    csvwriter.writerow(entry)
-                else:
-                    # Write an empty row
-                    csvwriter.writerow([])
 
-def process_directory(root_dir, config_data):
-    
+def process_directory(root_dir, config_data, normalize_dataset):
+    excluded_dirs = config_data['reader']['exclude_directories'].values()
     if os.path.isfile(root_dir):
         all_data = []
         file_path = root_dir
@@ -177,14 +165,12 @@ def process_directory(root_dir, config_data):
 
         output_filepath = os.path.join(dir_name, filename + 'summary.csv')
 
-        writer(output_filepath, all_data)
+        write_file(output_filepath, all_data)
     else: 
         all_data = []
         start_folder_time = time.time()
         for dirpath, dirnames, filenames in os.walk(root_dir):
-    
-            dirnames[:] = [d for d in dirnames if d not in ["To Be Tested", "Aditya", "htp-screening"]]
-    
+            dirnames[:] = [d for d in dirnames if d not in excluded_dirs]
             for filename in filenames:
                 if filename.startswith('._'):
                     continue
@@ -193,8 +179,8 @@ def process_directory(root_dir, config_data):
                 try:
                     rfc_data = execute_htp(file_path, config_data)
                 except Exception as e:
-                    with open(os.path.join(root_dir, "failed_files_txt"), "a") as log_file:
-                        log_file.write(f"FileL {file_path}, Exception: {str(e)}\n")
+                    with open(os.path.join(root_dir, "failed_files.txt"), "a") as log_file:
+                        log_file.write(f"File {file_path}, Exception: {str(e)}\n")
                     continue
                 if rfc_data == None:
                     continue
@@ -208,53 +194,10 @@ def process_directory(root_dir, config_data):
         
         output_filepath = os.path.join(root_dir, "summary.csv")
         
-        writer(output_filepath, all_data)
+        write_file(output_filepath, all_data)
         end_folder_time = time.time()
         elapsed_folder_time = end_folder_time - start_folder_time
         print('Time Elapsed to Process Folder:', elapsed_folder_time)
-
-def create_barcode(figpath, entry):
-    # Define color mappings
-    binary_colors = {0: [0, 0, 0], 1: [1, 1, 1]}  # Black for 0, white for 1
-    colormap = plt.get_cmap('plasma')  # Colormap for floats
-
-    # channel, r, c, spanning, void_value, island_size, island_movement, void_growth, direct, avg_vel, avg_speed, avg_div, c_area1, c_area2 = entry
-    channel = entry[0]
-    binary_indices = [1, 2, 6]
-    binary_values = [entry[val] for val in binary_indices]
-    float_indices = [3, 4, 5, 7, 8, 9, 10, 11, 12, 13]
-    float_values = [entry[val] for val in float_indices]
-
-    # Define normalization limits of floating point values
-    bin_size_lim = [0, 1]
-    direct_lim = [-np.pi, np.pi]
-    void_growth_lim = [0, 5]
-    avg_vel_lim = [0, 10]
-    avg_speed_lim = [0, 10]
-    avg_div = [-1, 1]
-    i_area_lim = [0, 1]
-    limits = [bin_size_lim, bin_size_lim, void_growth_lim, i_area_lim, i_area_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim]
-    
-    def normalize(x, min_float, max_float):
-        return (x - min_float) / (max_float - min_float)
-    
-    # Create the color barcode
-    barcode = [None] * 13
-    for index, value in zip(binary_indices, binary_values):
-        color = binary_colors[value]
-        barcode[index - 1] = color
-    for f_index, entry_value_float, float_lim in zip(float_indices, float_values, limits):
-        color = colormap(normalize(entry_value_float, float_lim[0], float_lim[1]))[:3]
-        barcode[f_index - 1] = color
-    
-    # Convert to numpy array and reshape for plotting
-    barcode = np.array(barcode)
-    barcode_image = np.tile(barcode, (10, 1, 1))  # Repeat the barcode to make it visible
-
-    # Plot and save the barcode
-    plt.imshow(barcode_image, aspect='auto')
-    plt.axis('off')
-    plt.savefig(figpath, bbox_inches='tight', pad_inches=0)
 
 def check_channel_dim(image):
     min_intensity = np.min(image)
@@ -271,7 +214,9 @@ def main():
         config_path = os.path.join(os.path.dirname(abs_path), 'config.yaml')
     with open(config_path, "r") as yamlfile:
         config_data = yaml.load(yamlfile, Loader=yaml.CLoader)
-        process_directory(dir_name, config_data)
+        writer_data = config_data['writer']
+        normalize_dataset, generate_rgbmap, generate_barcode = writer_data.values()
+        process_directory(dir_name, config_data, normalize_dataset)
 
 if __name__ == "__main__":
     main()

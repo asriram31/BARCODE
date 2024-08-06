@@ -14,13 +14,7 @@ def divergence_npgrad(flow):
     dFy_dy = np.gradient(Fy, axis=1)
     return dFx_dx + dFy_dy
 
-def check_flow(file, name, channel, min_corr_len, min_fraction, frame_stride, downsample, pix_size, bin_width, decay_threshold = 1/np.exp(1), tbf=1):
-    #Width of annuli in pixels
-    pixel_bin_width = np.ceil(bin_width / pix_size)
-    #Length at which to stop computing correlators
-    max_len = 500
-    #Length in pixels at which to cut off correlators
-    max_pixel_len = np.rint(max_len / pix_size)
+def check_flow(file, name, channel, frame_stride, downsample, decay_threshold = 1/np.exp(1)):
     #Cutoff magnitude to consider a vector to be null; also helps to avoid divide-by-zero errors
     flt_tol = 1e-10
     def execute_opt_flow(images, start, stop, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices):
@@ -75,8 +69,7 @@ def check_flow(file, name, channel, min_corr_len, min_fraction, frame_stride, do
 
     # Error Checking: Empty Images
     if (images == 0).all():
-       verdict = "Data not available for this channel."
-       return verdict, fig
+       return [None] * 4
 
     xindices = np.arange(0, images[0].shape[0], downsample)
     yindices = np.arange(0, images[0].shape[1], downsample)
@@ -115,4 +108,4 @@ def check_flow(file, name, channel, min_corr_len, min_fraction, frame_stride, do
     mean_vel = (vxMeans.mean() ** 2 + vyMeans.mean() ** 2) ** (1/2)
     mean_speed = speeds.mean()
     
-    return None, direct, mean_vel, mean_speed, mean_div
+    return direct, mean_vel, mean_speed, mean_div

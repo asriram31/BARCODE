@@ -8,6 +8,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib import gridspec
+from gooey import Gooey, GooeyParser
 
 def execute_htp(filepath, config_data):
     reader_data = config_data['reader']
@@ -30,9 +31,12 @@ def execute_htp(filepath, config_data):
             pt_loss, pt_gain = resilience_data['percent_threshold'].values()
             f_step = resilience_data['frame_step']
             f_start, f_stop = resilience_data['evaluation_settings'].values()
+            # print(r_offset, pt_loss, pt_gain, f_step, f_start, f_stop)
+            # res_values = check_resilience(file, channel, r_offset, pt_loss, pt_gain, f_step, f_start, f_stop)
+            # print(res_values)
             r, rfig, void_value, spanning, island_size, island_movement, void_growth = check_resilience(file, channel, r_offset, pt_loss, pt_gain, f_step, f_start, f_stop)
         else:
-            r = "Resilience not tested"
+            r = None
             rfig = None
             spanning = None
             void_value = None
@@ -40,10 +44,9 @@ def execute_htp(filepath, config_data):
             island_movement = None
             void_growth = None
         if flow == True:
-            mcorr_len, min_fraction, frame_step, downsample, pix_size, bin_width = flow_data.values()
-            ffig, direct, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, mcorr_len, min_fraction, frame_step, downsample, pix_size, bin_width)
+            frame_step, downsample = flow_data.values()
+            direct, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample)
         else:
-            ffig = None
             direct = None
             avg_vel = None
             avg_speed = None
@@ -54,7 +57,7 @@ def execute_htp(filepath, config_data):
             percent_frames = coarse_data['mean_mode_frames_percent']
             c, cfig, c_area1, c_area2 = check_coarse(file, channel, fframe, lframe, t_percent, percent_frames)
         else:
-            c = "Coarseness not tested."
+            c = None
             cfig = None
             c_area1 = None
             c_area2 = None
@@ -71,14 +74,6 @@ def execute_htp(filepath, config_data):
                 fig.add_axes(ax1)
                 ax1.set_position([2.5/15, 1/10, 4/5, 4/5])
 
-            if ffig != None:
-
-                ax2 = ffig.axes[0]
-                ax2.remove()
-                ax2.figure = fig
-                fig.add_axes(ax2)
-                ax2.set_position([17.5/15, 1/10, 4/5, 4/5])
-
             if cfig != None:               
                 ax3 = cfig.axes[0]
                 ax3.remove()
@@ -88,7 +83,6 @@ def execute_htp(filepath, config_data):
 
             plt.savefig(figpath)
         plt.close(rfig)
-        plt.close(ffig)
         plt.close(cfig)
         plt.close(fig)
 
@@ -101,19 +95,22 @@ def execute_htp(filepath, config_data):
     
     file = read_file(filepath, accept_dim_im)
 
+
     if (isinstance(file, np.ndarray) == False):
         return None
 
     channels = min(file.shape)
     
-    if (isinstance(channel_select, int) == False) or channel_select > channels:
-        raise ValueError("Please give correct channel input (-1 for all channels, 0 for channel 1, etc)")
+    if (isinstance(channel_select, int) == False and isinstance(channel_select, bool) == False) or channel_select > channels:
+        print(channel_select)
+        raise ValueError("Please give correct channel input (False for all channels, -1 for the last channel, 0 for channel 1, etc)")
     
     rfc = []
-    
-    if channel_select == -1:
+    print(channel_select)
+    if channel_select == 'All':
         print('Total Channels:', channels)
         channel = channels - 1
+        print(file[:,:,:,channel])
         # for channel in range(channels):
         print('Channel:', channel)
         #     if check_channel_dim(file[:,:,:,channel]) and not accept_dim_channel:
@@ -215,7 +212,7 @@ def process_directory(root_dir, config_data):
 
 def create_barcode(figpath, entry):
     # Define color mappings
-    binary_colors = {0: [0, 0, 0], 1: [1, 1, 1]}  # Black for 0, white for 1
+    binary_colors = {0: [0, 0, 0], 1: [1, 1, 1], None: [0.5, 0.5, 0.5]}  # Black for 0, white for 1
     colormap = plt.get_cmap('plasma')  # Colormap for floats
 
     # channel, r, c, spanning, void_value, island_size, island_movement, void_growth, direct, avg_vel, avg_speed, avg_div, c_area1, c_area2 = entry
@@ -236,6 +233,8 @@ def create_barcode(figpath, entry):
     limits = [bin_size_lim, bin_size_lim, void_growth_lim, i_area_lim, i_area_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim]
     
     def normalize(x, min_float, max_float):
+        if x == None:
+            return None
         return (x - min_float) / (max_float - min_float)
     
     # Create the color barcode
@@ -244,7 +243,8 @@ def create_barcode(figpath, entry):
         color = binary_colors[value]
         barcode[index - 1] = color
     for f_index, entry_value_float, float_lim in zip(float_indices, float_values, limits):
-        color = colormap(normalize(entry_value_float, float_lim[0], float_lim[1]))[:3]
+        cval = normalize(entry_value_float, float_lim[0], float_lim[1])
+        color = [0.5, 0.5, 0.5] if cval == None else colormap(cval)[:3]
         barcode[f_index - 1] = color
     
     # Convert to numpy array and reshape for plotting
@@ -261,17 +261,174 @@ def check_channel_dim(image):
     mean_intensity = np.mean(image)
     return 2 * np.exp(-1) * mean_intensity <= min_intensity
 
-
+@Gooey(program_name="DMREF BARCODE Program", tabbed_groups=True, navigation='Tabbed')
 def main():
-    abs_path = os.path.abspath(sys.argv[0])
-    dir_name = sys.argv[1]
-    if len(sys.argv) == 3:
-        config_path = sys.argv[2]
-    else:
-        config_path = os.path.join(os.path.dirname(abs_path), 'config.yaml')
-    with open(config_path, "r") as yamlfile:
-        config_data = yaml.load(yamlfile, Loader=yaml.CLoader)
-        process_directory(dir_name, config_data)
+    parser = GooeyParser(description='Code that runs through the BARCODE code developed by the DMREF group')
+
+    gc = parser.add_argument_group("Execution Settings")
+    fdc = gc.add_mutually_exclusive_group()
+    fdc.add_argument('--file_path', metavar = 'File Chooser', widget='FileChooser', gooey_options = {
+        'wildcard': "Document (*.nd2)|*.nd2|"
+        "TIFF Image (*.tiff)|*.tiff|"
+        "TIFF Image (*.tif)|*.tif"
+    }
+    )
+    fdc.add_argument('--dir_path', metavar='Directory Chooser', widget='DirChooser')
+    
+    c_select = gc.add_mutually_exclusive_group()
+    c_select.add_argument('--channels', metavar='Parse All Channels', widget='CheckBox', action='store_true')
+
+    c_select.add_argument('--channel_selection', metavar='Choose Channel', widget='IntegerField', gooey_options = {
+        'min': -3, 
+        'max': 4
+    }
+    )
+
+    gc.add_argument('--check_resilience', metavar='Resilience', help='Evaluate sample(s) using binarization module', widget='CheckBox', action='store_true')
+    gc.add_argument('--check_flow', metavar='Flow', help='Evaluate sample(s) using optical flow module', widget='CheckBox', action='store_true')
+    gc.add_argument('--check_coarsening', metavar='Coarsening', help='Evaluate sample(s) using intensity distribution module', widget='CheckBox', action='store_true')
+    
+    gc.add_argument('--verbose', metavar='Verbose', help='Show more details', widget='CheckBox', action='store_true')
+    gc.add_argument('--return_graphs', metavar='Save Graphs', help='Click to save graphs representing sample changes', widget='CheckBox', action='store_true')
+    gc.add_argument('--return_intermediates', metavar='Intermediates', help='Click to save intermediate data structures (flow fields, binarized images, intensity distributions)', widget='CheckBox', action='store_true')
+
+    gc.add_argument('--dim_images', metavar='Dim Images', help='Click to scan files that may be too dim to accurately profile', widget='CheckBox', action='store_true')
+    gc.add_argument('--dim_channels', metavar='Dim Channels', help='Click to scan channels that may be too dim to accurately profile', widget='CheckBox', action='store_true')
+
+    res_settings = parser.add_argument_group('Resilience Settings')
+    res_settings.add_argument('--r_offset', metavar='Binarization Threshold', help='Adjust the pixel intensity threshold as a percentage of the mean (0 - 200%)', widget='DecimalField', gooey_options = {
+        'min':-1.0,
+        'max':1.0,
+        'increment':0.05
+    })
+    res_settings.add_argument('--pt_loss', metavar='Percent Threshold Loss', help="Percentage of original void size that final void size must be greater than to considered resilient", widget='DecimalField', gooey_options = {
+        'min':0,
+        'max':1,
+        'increment':0.05 
+    })
+    res_settings.add_argument('--pt_gain', metavar='Percent Threshold Gain', help="Percentage of original void size that final void size must be less than to considered resilient", widget='DecimalField', gooey_options = {
+        'min':1,
+        'max':5,
+        'increment':0.05 
+    })
+
+    res_settings.add_argument('--res_f_step', metavar = 'Frame Step', help = "Controls how many frames between evaluated frames", widget='Slider', gooey_options = {
+        'min':1,
+        'increment':1
+    })
+
+    res_settings.add_argument('--pf_start', metavar='Frame Start Percent', help="Determines starting percentage of frames to evaluate for resilience", widget='DecimalField', gooey_options = {
+        'min':0.5,
+        'max':0.9,
+        'increment':0.05
+    })
+
+    res_settings.add_argument('--pf_stop', metavar='Frame Stop Percent', help="Determines ending percentage of frames to evaluate for resilience", widget='DecimalField', gooey_options = {
+        'min':0.9,
+        'max':1,
+        'increment':0.05
+    })
+
+    flow_settings = parser.add_argument_group('Flow Settings')
+
+    flow_settings.add_argument('--flow_f_step', metavar = 'Frame Step', help = "Controls the interval between frames the flow field is calculated at", widget = 'Slider', gooey_options = {
+        'min':1,
+        'increment':1
+    })
+
+    flow_settings.add_argument('--downsample', metavar = 'Downsample', help = "Controls the downsampling rate of the flow field (larger values give less precision, less prone to noise)", widget = 'IntegerField', gooey_options = {
+        'min':1,
+        'increment':1
+    })
+
+    coarse_settings = parser.add_argument_group('Coarsening Settings')
+
+    coarse_settings.add_argument('--first_frame', metavar='First Frame', help = 'Controls which frame is used as the first frame for intensity distribution comparisons', widget='Slider', gooey_options = {
+        'min':1,
+        'increment':1
+    })
+
+    final_frame = coarse_settings.add_mutually_exclusive_group()
+
+    final_frame.add_argument('--eval_last_frame', metavar = 'Use Default Last Frame', help = 'Use final frame of image for intensity distribution comparisons', action='store_true')
+
+    final_frame.add_argument('--select_last_frame', metavar = 'Select Last Frame', help = "Select the final frame of the video for intensity distribution comparisons", widget = 'IntegerField')
+
+    coarse_settings.add_argument('--thresh_percent', metavar = 'Threshold Percentage', help = 'Select the threshold percentage mean-mode difference between the final and initial intensity distributions; adjust for different objective lenses (5-7 for 60x objective lens, 1 for 20x, etc)', widget = 'Slider', gooey_options = {
+        'min': 1,
+        'max': 8,
+        'increment': 1
+    })
+
+    coarse_settings.add_argument('--pf_evaluation', metavar = 'Percent of Frames Evaluated', help = "Determine what percent of frames are evaluated for intensity distribution comparison using mean-mode comparison", widget = 'DecimalField', gooey_options = {
+        'min':0.01,
+        'max': 0.2,
+        'increment':0.01
+    })
+    
+    settings = parser.parse_args()
+
+    print(settings.channel_selection)
+    print(settings.channels)
+    
+    # abs_path = os.path.abspath(sys.argv[0])
+
+    print(settings)
+
+    dir_name = settings.dir_path if settings.dir_path != None else settings.file_path
+
+    config_data = set_config_data(settings)
+
+    print(coarse_settings)
+    # dir_name = sys.argv[1]
+    
+    process_directory(dir_name, config_data)
+
+def set_config_data(args = None):
+    config_data = {}
+    reader_data = {}
+    writer_data = {}
+    resilience_data = {}
+    flow_data = {}
+    coarsening_data = {}
+    if args:
+        reader_data = {
+            'channel_select':'All' if args.channels else int(args.channel_selection),
+            'resilience':args.check_resilience,
+            'flow':args.check_flow,
+            'coarsening':args.check_coarsening,
+            'verbose':args.verbose,
+            'accept_dim_images':args.dim_images,
+            'accept_dim_channels':args.dim_channels
+        }
+        if reader_data['resilience']:
+            resilience_data = {
+                'r_offset':float(args.r_offset),
+                'percent_threshold':{'pt_loss':float(args.pt_loss), 'pt_gain':float(args.pt_gain)},
+                'frame_step':int(args.res_f_step),
+                'evaluation_settings':{'f_start':float(args.pf_start), 'f_stop':float(args.pf_stop)},
+            }
+        if reader_data['flow']:
+            flow_data = {
+                'frame_step':int(args.flow_f_step),
+                'downsample':int(args.downsample)
+            }
+
+        if reader_data['coarsening']:
+            coarsening_data = {
+                'evaluation_settings':{'first_frame':int(args.first_frame), 'last_frame':False if args.eval_last_frame else args.select_last_frame},
+                'threshold_percentage':float(args.thresh_percent),
+                'mean_mode_frames_percent':float(args.pf_evaluation),
+            }
+
+        config_data = {
+            'reader':reader_data,
+            'resilience_parameters':resilience_data,
+            'flow_parameters':flow_data,
+            'coarse_parameters':coarsening_data
+        }
+        
+    return config_data
 
 if __name__ == "__main__":
     main()

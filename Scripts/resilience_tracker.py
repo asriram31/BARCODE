@@ -105,7 +105,7 @@ def check_resilience(file, channel, R_offset, percent_threshold_loss, percent_th
     # Error Checking: Empty Image
     if (image == 0).all():
         verdict = "Data not available for this channel."
-        return verdict, fig
+        return [None] * 7
     
     largest_void_lst, island_area_lst, island_position_lst = track_void(image, R_offset, frame_step)
     start_index = int(len(largest_void_lst) * frame_start_percent)

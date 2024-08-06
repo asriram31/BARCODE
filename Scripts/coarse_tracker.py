@@ -79,7 +79,7 @@ def check_coarse(file, channel, first_frame, last_frame, threshold_percentage, f
 
     if (im == 0).all(): # If image is blank, then end program early
         verdict = "Data not available for this channel."
-        return verdict, fig, np.array([])
+        return [None] * 4
 
     max_px_intensity = 1.1*np.max(im)
     min_px_intensity = np.min(im)

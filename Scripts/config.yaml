@@ -22,12 +22,8 @@ resilience_parameters:
 
 # Settings to determine flow parameters
 flow_parameters:
-  min_corr_len: 25
-  min_fraction: 0.5
   frame_step: 20
   downsample: 8
-  pixel_size: 1
-  bin_width: 1
 
 # Settings to determine coarsening parameters
 coarse_parameters:

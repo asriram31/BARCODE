@@ -4,24 +4,23 @@ import numpy as np
 
 def write_file(output_filepath, data):
     if data:
-        headers = ['Channel', 'Resilience', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intesity Difference Area 2', 'Average Velocity', 'Average Speed', 'Average Divergence', 'Island Movement Direction', 'Flow Direction']
+        headers = ['Channel', 'Resilience', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intensity Difference Area 2', 'Average Velocity', 'Average Speed', 'Average Divergence', 'Island Movement Direction', 'Flow Direction']
         with open(output_filepath, 'w', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(headers) # Write headers before the first filename
+            headers = [] # Ensures headers are only written once per file
             for entry in data:
                 if isinstance(entry, list) and len(entry) == 1:
                     # Write the file name
                     csvwriter.writerow(entry)
-                    csvwriter.writerow(headers)  # Write headers after the filename
+                    # csvwriter.writerow(headers)  # Write headers after the filename
                 elif entry:
-                    # Write the headers if entry contains channel data
-                    csvwriter.writerow(headers)
-                    headers = []  # Ensure headers are only written once per file
                     csvwriter.writerow(entry)
                 else:
                     # Write an empty row
                     csvwriter.writerow([])
 
-def create_barcode(figpath, entry, norm_data=False, bar_gen=True, rgb_gen=False):
+def create_barcode(figpath, entry, bar_gen=True):
     # Define color mappings
     binary_colors = {0: [0, 0, 0], 1: [1, 1, 1], None: [0.5, 0.5, 0.5]}  # Black for 0, white for 1
     colormap = plt.get_cmap('plasma')  # Colormap for floats
@@ -60,9 +59,34 @@ def create_barcode(figpath, entry, norm_data=False, bar_gen=True, rgb_gen=False)
     
     # Convert to numpy array and reshape for plotting
     barcode = np.array(barcode)
-    barcode_image = np.tile(barcode, (10, 1, 1))  # Repeat the barcode to make it visible
+    if bar_gen == True:
+        barcode_image = np.tile(barcode, (10, 1, 1))  # Repeat the barcode to make it visible
+        # Plot and save the barcode
+        plt.imshow(barcode_image, aspect='auto')
+        plt.axis('off')
+        plt.savefig(figpath, bbox_inches='tight', pad_inches=0)
 
-    # Plot and save the barcode
-    plt.imshow(barcode_image, aspect='auto')
-    plt.axis('off')
+    return barcode
+        
+
+
+def generate_stitched_barcode(barcodes, figpath=None):
+    # Stack the barcodes vertically
+    stitched_barcodes = np.vstack(barcodes)
+    
+    # Normalize the RGB values across all barcodes using the plasma colormap
+    num_barcodes = len(barcodes)
+    plasma_colormap = plt.get_cmap('plasma')
+    
+    # Create a figure and axis
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    # Repeat each barcode to make it more visible
+    barcode_image = np.repeat(stitched_barcodes, 10, axis=0)  # Adjust the repetition factor as needed
+    
+    # Plot the stitched barcodes
+    ax.imshow(barcode_image, aspect='auto')
+    ax.axis('off')  # Turn off the axis
+    
+    # Save or show the figure
     plt.savefig(figpath, bbox_inches='tight', pad_inches=0)

@@ -18,17 +18,15 @@ def main():
     gc = parser.add_argument_group("Execution Settings")
 
     # File/Directory Selection
-    fdc = gc.add_mutually_exclusive_group(required = True)
+    fdc = gc.add_mutually_exclusive_group()
     fdc.add_argument('--file_path', metavar = 'File Chooser', widget='FileChooser', gooey_options = {
         'wildcard': "Document (*.nd2)|*.nd2|"
         "TIFF Image (*.tiff)|*.tiff|"
         "TIFF Image (*.tif)|*.tif"
     })
     fdc.add_argument('--dir_path', metavar='Directory Chooser', widget='DirChooser')
-
-    gc.add_argument('--ignored_dirs', metavar='Skip Directories', widget='MultiDirChooser', help="Select directories for the program to ignore")
     # Channel Selection
-    c_select = gc.add_mutually_exclusive_group(required = True)
+    c_select = gc.add_mutually_exclusive_group()
     c_select.add_argument('--channels', metavar='Parse All Channels', widget='CheckBox', action='store_true')
     c_select.add_argument('--channel_selection', metavar='Choose Channel', widget='IntegerField', gooey_options = {
         'min': -3, 
@@ -46,7 +44,6 @@ def main():
     gc.add_argument('--verbose', metavar='Verbose', help='Show more details', widget='CheckBox', action='store_true')
     gc.add_argument('--return_graphs', metavar='Save Graphs', help='Click to save graphs representing sample changes', widget='CheckBox', action='store_true')
     gc.add_argument('--return_intermediates', metavar='Intermediates', help='Click to save intermediate data structures (flow fields, binarized images, intensity distributions)', widget='CheckBox', action='store_true')
-    gc.add_argument('--normalize_dataset', metavar='Dataset Normalization', help="Click to generate the barcode colormaps using normalization determined by the dataset", widget='CheckBox', action='store_true')
     
     gc.add_argument('--generate_rgb_map', metavar='Generate RGB Map', help="Click to output the RGB map", widget="CheckBox", action='store_true')
     gc.add_argument('--generate_barcode', metavar='Generate Barcode', help="Click to create barcodes for the dataset", widget="CheckBox", action='store_true')
@@ -101,16 +98,15 @@ def main():
 
     coarse_settings = parser.add_argument_group('Coarsening Settings')
 
-    coarse_settings.add_argument('--first_frame', metavar='First Frame', help = 'Controls which frame is used as the first frame for intensity distribution comparisons', widget='Slider', gooey_options = {
+    coarse_settings.add_argument('--first_frame', metavar='First Frame', help = 'Controls which frame is used as the first frame for intensity distribution comparisons', widget='IntegerField', gooey_options = {
         'min':1,
         'increment':1
     })
 
-    final_frame = coarse_settings.add_mutually_exclusive_group(required = True)
-
-    final_frame.add_argument('--eval_last_frame', metavar = 'Use Default Last Frame', help = 'Use final frame of image for intensity distribution comparisons', widget='CheckBox', action='store_true')
-
-    final_frame.add_argument('--select_last_frame', metavar = 'Select Last Frame', help = "Select the final frame of the video for intensity distribution comparisons", widget = 'IntegerField')
+    coarse_settings.add_argument('--last_frame', metavar = 'Last Frame', help = "Select which frame is used as the second frame for intensity distribution comparisons (0 for the final frame of video)", widget = 'IntegerField', default=0, gooey_options = {
+        'min':0,
+        'increment':1
+    })
 
     coarse_settings.add_argument('--thresh_percent', metavar = 'Threshold Percentage', help = 'Select the threshold percentage mean-mode difference between the final and initial intensity distributions; adjust for different objective lenses (5-7 for 60x objective lens, 1 for 20x, etc)', widget = 'Slider', default = 6, gooey_options = {
         'min': 1,
@@ -126,11 +122,19 @@ def main():
     
     settings = parser.parse_args()
 
-    dir_name = settings.dir_path if settings.dir_path != None else settings.file_path
+    if not (settings.dir_path or settings.file_path):
+        print("No file or directory has been selected, exiting the program...")
+        sys.exit()
+
+    if not (settings.channels or settings.channel_selection):
+        print("No channel has been specified, exiting the program...")
+        sys.exit()
+
+    dir_name = settings.dir_path if settings.dir_path else settings.file_path
 
     config_data = set_config_data(settings)
 
-    # dir_name = sys.argv[1]
+    print(dir_name)
     
     process_directory(dir_name, config_data)
 
@@ -149,14 +153,12 @@ def set_config_data(args = None):
             'coarsening':args.check_coarsening,
             'verbose':args.verbose,
             'return_graphs':args.return_graphs,
-            'ignored_directories':args.ignored_dirs,
             'accept_dim_images':args.dim_images,
             'accept_dim_channels':args.dim_channels
         }
         
         writer_data = {
             'return_intermediates':args.return_intermediates,
-            'normalize_dataset':args.normalize_dataset,
             'generate_rgb_map':args.generate_rgb_map,
             'generate_barcode':args.generate_barcode,
             'stitch_barcode':args.stitch_barcode
@@ -185,7 +187,7 @@ def set_config_data(args = None):
             coarsening_data = {
                 'evaluation_settings':{
                     'first_frame':int(args.first_frame), 
-                    'last_frame':False if args.eval_last_frame else args.select_last_frame
+                    'last_frame':False if int(args.last_frame) == 0 else int(args.last_frame)
                 },
                 'threshold_percentage':float(args.thresh_percent),
                 'mean_mode_frames_percent':float(args.pf_evaluation),

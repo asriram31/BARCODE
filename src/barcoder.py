@@ -8,7 +8,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib import gridspec
-from writer import write_file, create_barcode
+from writer import write_file, create_barcode, generate_stitched_barcode
 
 def check_channel_dim(image):
     min_intensity = np.min(image)
@@ -18,15 +18,17 @@ def check_channel_dim(image):
 def execute_htp(filepath, config_data):
     reader_data = config_data['reader']
     save_intermediates = config_data['writer']['return_intermediates']
-    channel_select, resilience, flow, coarsening, verbose, return_graphs, ignored_dirs, accept_dim_im, accept_dim_channel = reader_data.values()
+    channel_select, resilience, flow, coarsening, verbose, return_graphs, accept_dim_im, accept_dim_channel = reader_data.values()
     r_data = config_data['resilience_parameters']
     f_data = config_data['flow_parameters']
     c_data = config_data['coarse_parameters']
-
+    stitch_barcode = config_data['writer']['stitch_barcode']
+    rgb_map = config_data['writer']['generate_rgb_map']
+    generate_barcode = config_data['writer']['generate_barcode']
     
     vprint = print if verbose else lambda *a, **k: None
 
-    def check(channel, resilience, flow, coarse, resilience_data, flow_data, coarse_data):
+    def check(channel, resilience, flow, coarse, resilience_data, flow_data, coarse_data, generate_barcode):
         figure_dir_name = remove_extension(filepath) + ' Plots'
         fig_channel_dir_name = os.path.join(figure_dir_name, 'Channel ' + str(channel))
         if not os.path.exists(figure_dir_name):
@@ -94,19 +96,22 @@ def execute_htp(filepath, config_data):
         result = [channel, r, spanning, island_size, void_value, void_growth,  c, c_area1, c_area2, avg_vel, avg_speed, avg_div, island_movement, direct]
 
         figpath2 = os.path.join(fig_channel_dir_name, 'Channel ' + str(channel) + 'Barcode.png')
-        create_barcode(figpath2, result)
+
+        barcode = create_barcode(figpath2, result, generate_barcode)
             
-        return result
+        return barcode, result
     
     file = read_file(filepath, accept_dim_im)
 
 
     if (isinstance(file, np.ndarray) == False):
-        return None
+        raise TypeError("File was not of the correct filetype")
 
     channels = min(file.shape)
     
     rfc = []
+    barcodes = []
+    rgb = []
     if channel_select == 'All':
         vprint('Total Channels:', channels)
         for channel in range(channels):
@@ -114,16 +119,25 @@ def execute_htp(filepath, config_data):
             if check_channel_dim(file[:,:,:,channel]) and not accept_dim_channel:
                 vprint('Channel too dim, not enough signal, skipping...')
                 continue
-            results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
+            barcode, results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data, generate_barcode)
             rfc.append(results)
+            if rgb_map:
+                rgb.append(barcode)
+            if rgb_map and stitch_barcode:
+                    barcodes.append(barcode)
     
     else:
-        
+        while channel_select < 0:
+            channel_select = channels + channel_select # -1 will correspond to last channel, etc
         vprint('Channel: ', channel_select)
-        results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data)
+        barcode, results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data, generate_barcode)
         rfc.append(results)
+        if rgb_map:
+            rgb.append(barcode)
+        if rgb_map and stitch_barcode:
+            barcodes.append(barcode)
 
-    return rfc
+    return rgb, barcodes, rfc
 
 def remove_extension(filepath):
     if filepath.endswith('.tiff'):
@@ -135,17 +149,19 @@ def remove_extension(filepath):
 
 def process_directory(root_dir, config_data):
     verbose = config_data['reader']['verbose']
-    ignored_dirs = config_data['reader']['ignored_directories']
+    writer_data = config_data['writer']
+    save_intermediates, generate_rgb_map, generate_barcode, stitch_barcode = writer_data.values()
 
     vprint = print if verbose else lambda *a, **k: None
     
     if os.path.isfile(root_dir):
         all_data = []
+        all_barcode_data = []
         file_path = root_dir
         filename = os.path.basename(file_path)
         dir_name = os.path.dirname(file_path)
         start_time = time.time()
-        rfc_data = execute_htp(file_path, config_data)
+        rgb_data, barcode_data, rfc_data = execute_htp(file_path, config_data)
         if rfc_data == None:
             raise TypeError("Please input valid file type ('.nd2', '.tiff', '.tif')")
         all_data.append([filename])
@@ -155,17 +171,22 @@ def process_directory(root_dir, config_data):
         end_time = time.time()
         elapsed_time = end_time - start_time
         vprint('Time Elapsed:', elapsed_time)
-
+        all_barcode_data.append(barcode_data)
         output_filepath = os.path.join(dir_name, filename + 'summary.csv')
 
         write_file(output_filepath, all_data)
+        if stitch_barcode and generate_rgb_map:
+            output_figpath = os.path.join(dir_name, filename + 'barcodes.png')
+            generate_stitched_barcode(all_barcode_data, output_figpath)
+            
     else: 
         all_data = []
+        all_barcode_data = []
         start_folder_time = time.time()
         
         for dirpath, dirnames, filenames in os.walk(root_dir):
-    
-            dirnames[:] = [d for d in dirnames if d not in ignored_dirs]
+
+            dirnames[:] = [d for d in dirnames]
     
             for filename in filenames:
                 if filename.startswith('._'):
@@ -173,7 +194,9 @@ def process_directory(root_dir, config_data):
                 file_path = os.path.join(dirpath, filename)
                 start_time = time.time()
                 try:
-                    rfc_data = execute_htp(file_path, config_data)
+                    rgb_data, barcode_data, rfc_data = execute_htp(file_path, config_data)
+                except TypeError:
+                    continue
                 except Exception as e:
                     with open(os.path.join(root_dir, "failed_files.txt"), "a") as log_file:
                         log_file.write(f"FileL {file_path}, Exception: {str(e)}\n")
@@ -183,15 +206,19 @@ def process_directory(root_dir, config_data):
                 all_data.append([file_path])
                 all_data.extend(rfc_data)
                 all_data.append([])
+                all_barcode_data.append(barcode_data)
 
                 end_time = time.time()
                 elapsed_time = end_time - start_time
                 vprint('Time Elapsed:', elapsed_time)
         
         output_filepath = os.path.join(root_dir, "summary.csv")
-        
         write_file(output_filepath, all_data)
+        
+        if stitch_barcode and generate_rgb_map:
+            output_figpath = os.path.join(root_dir, 'summary_barcode.png')
+            generate_stitched_barcode(all_barcode_data, output_figpath)
+
         end_folder_time = time.time()
         elapsed_folder_time = end_folder_time - start_folder_time
         vprint('Time Elapsed to Process Folder:', elapsed_folder_time)
-

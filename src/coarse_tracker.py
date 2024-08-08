@@ -104,7 +104,7 @@ def check_coarse(file, name, channel, first_frame, last_frame, threshold_percent
     im = file[:,:,:,channel]
 
     # Set last_frame to last frame of movie if unspecified
-    if last_frame == False: 
+    if last_frame == False or last_frame >= len(im): 
         last_frame = len(im) - 1
 
     fig, ax = plt.subplots(figsize=(5,5))

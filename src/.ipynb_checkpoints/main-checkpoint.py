@@ -49,6 +49,11 @@ def main():
     gc.add_argument('--generate_barcode', metavar='Generate Barcode', help="Click to create barcodes for the dataset", widget="CheckBox", action='store_true')
     gc.add_argument('--stitch_barcode', metavar='Dataset Barcode', help="Generates a barcode for the entire dataset, instead of for individual videos (only occurs if barcode is generated)", widget="CheckBox", action='store_true')
 
+    gc.add_argument('--configuration_file', metavar='Configuration YAML File', help="Load a preexisting configuration file for the settings", widget="FileChooser", gooey_options = {
+        'wildcard': "YAML (*.yaml)|*.yaml|"
+        "YAML (*.yml)|*.yml"
+    })
+
 
     res_settings = parser.add_argument_group('Resilience Settings')
     res_settings.add_argument('--r_offset', metavar='Binarization Threshold', help='Adjust the pixel intensity threshold as a percentage of the mean (0 - 200%)', widget='DecimalField', default=0.1, gooey_options = {
@@ -67,7 +72,7 @@ def main():
         'increment':0.05 
     })
 
-    res_settings.add_argument('--res_f_step', metavar = 'Frame Step', help = "Controls how many frames between evaluated frames", widget='Slider', gooey_options = {
+    res_settings.add_argument('--res_f_step', metavar = 'Frame Step', help = "Controls how many frames between evaluated frames", widget='Slider', default=10, gooey_options = {
         'min':1,
         'increment':1
     })
@@ -132,7 +137,14 @@ def main():
 
     dir_name = settings.dir_path if settings.dir_path else settings.file_path
 
-    config_data = set_config_data(settings)
+    if settings.configuration_file:
+        with open(settings.configuration_file, 'r') as f:
+            config_data = yaml.load(f, Loader=yaml.FullLoader)
+            # if config_data['reader']['channel_select'] == 'All':
+            #     config_data['reader']['channel_select']
+
+    else: 
+        config_data = set_config_data(settings)
 
     print(dir_name)
     
@@ -147,40 +159,40 @@ def set_config_data(args = None):
     coarsening_data = {}
     if args:
         reader_data = {
-            'channel_select':'All' if args.channels else int(args.channel_selection),
-            'resilience':args.check_resilience,
-            'flow':args.check_flow,
-            'coarsening':args.check_coarsening,
-            'verbose':args.verbose,
-            'return_graphs':args.return_graphs,
+            'accept_dim_channels':args.dim_channels,
             'accept_dim_images':args.dim_images,
-            'accept_dim_channels':args.dim_channels
+            'channel_select':'All' if args.channels else int(args.channel_selection),
+            'coarsening':args.check_coarsening,
+            'flow':args.check_flow,
+            'resilience':args.check_resilience,
+            'return_graphs':args.return_graphs,
+            'verbose':args.verbose
         }
         
         writer_data = {
-            'return_intermediates':args.return_intermediates,
-            'generate_rgb_map':args.generate_rgb_map,
             'generate_barcode':args.generate_barcode,
+            'generate_rgb_map':args.generate_rgb_map,
+            'return_intermediates':args.return_intermediates,
             'stitch_barcode':args.stitch_barcode
         }
         
         if reader_data['resilience']:
             resilience_data = {
-                'r_offset':float(args.r_offset),
-                'percent_threshold':{
-                    'pt_loss':float(args.pt_loss), 
-                    'pt_gain':float(args.pt_gain)
-                },
-                'frame_step':int(args.res_f_step),
                 'evaluation_settings':{
                     'f_start':float(args.pf_start),
                     'f_stop':float(args.pf_stop)
                 },
+                'percent_threshold':{
+                    'pt_gain':float(args.pt_gain),
+                    'pt_loss':float(args.pt_loss) 
+                },
+                'frame_step':int(args.res_f_step),
+                'r_offset':float(args.r_offset),
             }
         if reader_data['flow']:
             flow_data = {
-                'frame_step':int(args.flow_f_step),
-                'downsample':int(args.downsample)
+                'downsample':int(args.downsample),
+                'frame_step':int(args.flow_f_step)
             }
 
         if reader_data['coarsening']:
@@ -189,15 +201,15 @@ def set_config_data(args = None):
                     'first_frame':int(args.first_frame), 
                     'last_frame':False if int(args.last_frame) == 0 else int(args.last_frame)
                 },
-                'threshold_percentage':float(args.thresh_percent),
                 'mean_mode_frames_percent':float(args.pf_evaluation),
+                'threshold_percentage':float(args.thresh_percent)
             }
 
         config_data = {
+            'coarse_parameters':coarsening_data,
+            'flow_parameters':flow_data,
             'reader':reader_data,
             'resilience_parameters':resilience_data,
-            'flow_parameters':flow_data,
-            'coarse_parameters':coarsening_data,
             'writer':writer_data
         }
         

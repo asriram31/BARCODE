@@ -18,7 +18,7 @@ def check_channel_dim(image):
 def execute_htp(filepath, config_data):
     reader_data = config_data['reader']
     save_intermediates = config_data['writer']['return_intermediates']
-    channel_select, resilience, flow, coarsening, verbose, return_graphs, accept_dim_im, accept_dim_channel = reader_data.values()
+    accept_dim_channel, accept_dim_im, channel_select, coarsening, flow, resilience, return_graphs, verbose = reader_data.values()
     r_data = config_data['resilience_parameters']
     f_data = config_data['flow_parameters']
     c_data = config_data['coarse_parameters']
@@ -29,7 +29,7 @@ def execute_htp(filepath, config_data):
     vprint = print if verbose else lambda *a, **k: None
 
     def check(channel, resilience, flow, coarse, resilience_data, flow_data, coarse_data, generate_barcode):
-        figure_dir_name = remove_extension(filepath) + ' Plots'
+        figure_dir_name = remove_extension(filepath) + ' Output Data'
         fig_channel_dir_name = os.path.join(figure_dir_name, 'Channel ' + str(channel))
         if not os.path.exists(figure_dir_name):
             os.makedirs(figure_dir_name)
@@ -38,10 +38,10 @@ def execute_htp(filepath, config_data):
         
         if resilience == True:
             r_offset = resilience_data['r_offset']
-            pt_loss, pt_gain = resilience_data['percent_threshold'].values()
+            pt_gain, pt_loss= resilience_data['percent_threshold'].values()
             f_step = resilience_data['frame_step']
             f_start, f_stop = resilience_data['evaluation_settings'].values()
-            r, rfig, void_value, spanning, island_size, island_movement, void_growth = check_resilience(file, fig_channel_dir_name, channel, r_offset, pt_loss, pt_gain, f_step, f_start, f_stop, save_intermediates)
+            r, rfig, void_value, spanning, island_size, island_movement, void_growth = check_resilience(file, fig_channel_dir_name, channel, r_offset, pt_loss, pt_gain, f_step, f_start, f_stop, save_intermediates, verbose)
         else:
             r = None
             rfig = None
@@ -51,7 +51,7 @@ def execute_htp(filepath, config_data):
             island_movement = None
             void_growth = None
         if flow == True:
-            frame_step, downsample = flow_data.values()
+            downsample, frame_step = flow_data.values()
             direct, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, return_graphs, save_intermediates, verbose)
         else:
             direct = None
@@ -62,7 +62,7 @@ def execute_htp(filepath, config_data):
             fframe, lframe = coarse_data['evaluation_settings'].values()
             t_percent = coarse_data['threshold_percentage']
             percent_frames = coarse_data['mean_mode_frames_percent']
-            c, cfig, c_area1, c_area2 = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, t_percent, percent_frames, save_intermediates)
+            c, cfig, c_area1, c_area2 = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, t_percent, percent_frames, save_intermediates, verbose)
         else:
             c = None
             cfig = None
@@ -95,7 +95,7 @@ def execute_htp(filepath, config_data):
 
         result = [channel, r, spanning, island_size, void_value, void_growth,  c, c_area1, c_area2, avg_vel, avg_speed, avg_div, island_movement, direct]
 
-        figpath2 = os.path.join(fig_channel_dir_name, 'Channel ' + str(channel) + 'Barcode.png')
+        figpath2 = os.path.join(fig_channel_dir_name, 'Channel ' + str(channel) + ' Barcode.png')
 
         barcode = create_barcode(figpath2, result, generate_barcode)
             
@@ -130,6 +130,8 @@ def execute_htp(filepath, config_data):
         while channel_select < 0:
             channel_select = channels + channel_select # -1 will correspond to last channel, etc
         vprint('Channel: ', channel_select)
+        if check_channel_dim(file[:,:,:,channel_select]):
+            vprint('Warning: channel is dim. Accuracy of screening may be limited by this.')
         barcode, results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data, generate_barcode)
         rfc.append(results)
         if rgb_map:
@@ -150,7 +152,7 @@ def remove_extension(filepath):
 def process_directory(root_dir, config_data):
     verbose = config_data['reader']['verbose']
     writer_data = config_data['writer']
-    save_intermediates, generate_rgb_map, generate_barcode, stitch_barcode = writer_data.values()
+    generate_barcode, generate_rgb_map, save_intermediates, stitch_barcode = writer_data.values()
 
     vprint = print if verbose else lambda *a, **k: None
     
@@ -160,6 +162,10 @@ def process_directory(root_dir, config_data):
         file_path = root_dir
         filename = os.path.basename(file_path)
         dir_name = os.path.dirname(file_path)
+        
+        time_filepath = os.path.join(dir_name, filename + 'time.txt')
+        time_file = open(time_filepath, "w")
+        time_file.write(file_path + "\n")
         start_time = time.time()
         rgb_data, barcode_data, rfc_data = execute_htp(file_path, config_data)
         if rfc_data == None:
@@ -171,6 +177,8 @@ def process_directory(root_dir, config_data):
         end_time = time.time()
         elapsed_time = end_time - start_time
         vprint('Time Elapsed:', elapsed_time)
+        time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
+        
         all_barcode_data.append(barcode_data)
         output_filepath = os.path.join(dir_name, filename + 'summary.csv')
 
@@ -178,10 +186,21 @@ def process_directory(root_dir, config_data):
         if stitch_barcode and generate_rgb_map:
             output_figpath = os.path.join(dir_name, filename + 'barcodes.png')
             generate_stitched_barcode(all_barcode_data, output_figpath)
+
+        settings_loc = os.path.join(dir_name, filename + "settings.yaml")
+        with open(settings_loc, 'w+') as ff:
+            yaml.dump(config_data, ff)
+
+        time_file.close()
             
     else: 
         all_data = []
         all_barcode_data = []
+
+        time_filepath = os.path.join(root_dir, 'time.txt')
+        time_file = open(time_filepath, "w")
+        time_file.write(root_dir + "\n")
+        
         start_folder_time = time.time()
         
         for dirpath, dirnames, filenames in os.walk(root_dir):
@@ -211,6 +230,8 @@ def process_directory(root_dir, config_data):
                 end_time = time.time()
                 elapsed_time = end_time - start_time
                 vprint('Time Elapsed:', elapsed_time)
+                time_file.write(file_path + "\n")
+                time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
         
         output_filepath = os.path.join(root_dir, "summary.csv")
         write_file(output_filepath, all_data)
@@ -222,3 +243,8 @@ def process_directory(root_dir, config_data):
         end_folder_time = time.time()
         elapsed_folder_time = end_folder_time - start_folder_time
         vprint('Time Elapsed to Process Folder:', elapsed_folder_time)
+        time_file.write('Time Elapsed to Process Folder: ' + str(elapsed_folder_time) + "\n")
+
+        settings_loc = os.path.join(root_dir, "settings.yaml")
+        with open(settings_loc, 'w+') as ff:
+            yaml.dump(config_data, ff)

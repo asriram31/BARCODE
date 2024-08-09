@@ -56,6 +56,9 @@ def check_span(image, R_thresh):
     return (check_connected(first_frame) and check_connected(last_frame)) or (check_connected(first_frame, axis = 1) and check_connected(last_frame, axis = 1))
 
 def track_void(image, name, threshold, step, save_intermediates):
+    downsample = 4
+    xindices = np.arange(0, image[0].shape[0], downsample)
+    yindices = np.arange(0, image[0].shape[1], downsample)
     def binarize(frame, offset_threshold):
         avg_intensity = np.mean(frame)
         threshold = avg_intensity * (1 + offset_threshold)
@@ -78,14 +81,23 @@ def track_void(image, name, threshold, step, save_intermediates):
     
     def find_largest_void_regions(frame):
         return max(find_largest_void_mid(frame, find_void = True), find_largest_void_mid(frame, find_void = False))
-    
+        
+    if save_intermediates:
+        filename = os.path.join(name, 'BinarizationData.csv')
+        f = open(filename, 'w')
+        csvwriter = csv.writer(f)
     void_lst = []
     island_area_lst = []
     island_position_lst = []
-    bin_video = np.zeros_like(image)
+    
     for i in range(0, len(image), step):
-        new_frame = binarize(image[i], threshold)
-        bin_video[i] = new_frame
+        new_image = image[i][xindices][:,yindices]
+        new_frame = binarize(new_image, threshold)
+        if save_intermediates:
+            csvwriter.writerow([str(i)])
+            csvwriter.writerows(new_frame)
+            csvwriter.writerow([])
+        # bin_video[int(i/step)] = new_frame
         void_area = find_largest_void(new_frame)
         island_area = find_largest_void(new_frame, find_void = False)
         island_position = largest_island_position(new_frame)
@@ -94,20 +106,22 @@ def track_void(image, name, threshold, step, save_intermediates):
         island_position_lst.append(island_position)
 
     if save_intermediates:
-        filename = name + '_BinarizationData.txt'
-        with open(filename, 'w') as f:
-            f.write(str(bin_video.shape[1]) + ',' + str(bin_video.shape[2]) + '\n')
-            for frame_idx in range(len(bin_video)):
-                f.write(str(frame_idx) + '\n')
-                for row in bin_video[frame_idx]:
-                    # Convert each row to a string and join with spaces
-                    row_str = ''.join(map(str, row))
-                    f.write(row_str + '\n')
-                f.write('\n')
+        f.close()
+    # if save_intermediates:
+    #         f.write(str(bin_video.shape[1]) + ',' + str(bin_video.shape[2]) + '\n')
+    #         for frame_idx in range(0, len(bin_video)):
+    #             f.write(str(frame_idx) + '\n')
+    #             for row in bin_video[frame_idx]:
+    #                 # Convert each row to a string and join with spaces
+    #                 row_str = ''.join(map(str, row))
+    #                 f.write(row_str + '\n')
+    #             f.write('\n')
 
     return void_lst, island_area_lst, island_position_lst
 
-def check_resilience(file, name, channel, R_offset, percent_threshold_loss, percent_threshold_gain, frame_step, frame_start_percent, frame_stop_percent, save_intermediates):
+def check_resilience(file, name, channel, R_offset, percent_threshold_loss, percent_threshold_gain, frame_step, frame_start_percent, frame_stop_percent, save_intermediates, verbose):
+    vprint = print if verbose else lambda *a, **k: None
+    vprint('Beginning Resilience Testing...')
     #Note for parameters: frame_step (stepsize) used to reduce the runtime. 
     image = file[:,:,:,channel]
     frame_initial_percent = 0.05

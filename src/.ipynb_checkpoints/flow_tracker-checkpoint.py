@@ -5,7 +5,7 @@ import cv2 as cv
 from scipy.fft import fft2, ifft2
 from scipy.interpolate import Akima1DInterpolator
 from scipy import optimize
-import os, math
+import os, math, csv
 
 def divergence_npgrad(flow):
     flow = np.swapaxes(flow, 0, 1)
@@ -16,10 +16,10 @@ def divergence_npgrad(flow):
 
 def check_flow(file, name, channel, frame_stride, downsample, return_graphs, save_intermediates, verbose):
     vprint = print if verbose else lambda *a, **k: None
-    filename = name + '_OpticalFlow.txt'
+    vprint('Beginning Flow Testing')
     #Cutoff magnitude to consider a vector to be null; also helps to avoid divide-by-zero errors
     flt_tol = 1e-10
-    def execute_opt_flow(images, start, stop, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices):
+    def execute_opt_flow(images, start, stop, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices, save_intermediates, writer):
         def normalVectors(velocities):
             #Find velocity directions
             def normalize(vector):
@@ -46,6 +46,12 @@ def check_flow(file, name, channel, frame_stride, downsample, return_graphs, sav
         downU = np.flipud(downU)
         downV = -1*flow[:,:,1][xindices][:,yindices]
         downV = np.flipud(downV)
+        if save_intermediates:
+            writer.writerow(["Flow Field (" + str(beg) + "-" + str(end) + ")"])
+            writer.writerow(["X-Direction"])
+            writer.writerows(downU)
+            writer.writerow(["Y-Direction"])
+            writer.writerows(downV)
         speed = (downU ** 2 + downV ** 2) ** (1/2)
         if np.isin(beg, positions) and return_graphs:
             fig2, ax2 = plt.subplots(figsize=(10,10))
@@ -56,16 +62,14 @@ def check_flow(file, name, channel, frame_stride, downsample, return_graphs, sav
         vxMeans = np.append(vxMeans, downU.mean())
         vyMeans = np.append(vyMeans, downV.mean())        
         speeds = np.append(speeds, speed.mean())
-        if save_intermediates:
-            return [xMeans, yMeans, vxMeans, vyMeans, speeds, divs], downU, downV
-        else:
-            return [xMeans, yMeans, vxMeans, vyMeans, speeds, divs]
+        return [xMeans, yMeans, vxMeans, vyMeans, speeds, divs]
+
 
     images = file[:,:,:,channel]
 
     end_point = len(images) - frame_stride
     while end_point <= 0: # Checking to see if frame_stride is too large
-        frame_stride = int(np.ceil(frame_stride / 2))
+        frame_stride = int(np.ceil(frame_stride / 5))
         vprint('Flow field frame step too large for video, dynamically adjusting, new frame step:', frame_stride)
         end_point = len(images) - frame_stride
 
@@ -92,61 +96,26 @@ def check_flow(file, name, channel, frame_stride, downsample, return_graphs, sav
     speeds = np.array([])
     divs = np.array([])
 
-
-    
-    
+    filename = os.path.join(name, 'OpticalFlow.csv')
     if save_intermediates:
-        with open(filename, "w") as myfile:
-            
-            for beg in range(0, end_point, frame_stride):
-                end = beg + frame_stride
-                arr, downU, downV = execute_opt_flow(images, beg, end, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices)
-                myfile.write("Flow Field (" + str(beg) + "-" + str(end) + ")\n")
-                myfile.write("X-Direction:\n")
-                for row in downU:
-                    # Convert each row to a string and join with spaces
-                    row_str = ''.join(map(str, row))
-                    myfile.write(row_str + '\n')
-                myfile.write('\n')
-                myfile.write("Y-Direction:\n")
-                for row in downV:
-                    # Convert each row to a string and join with spaces
-                    row_str = ''.join(map(str, row))
-                    myfile.write(row_str + '\n')
-                myfile.write('\n')
-                
-                xMeans, yMeans, vxMeans, vyMeans, speeds, divs = arr
-                pos += 1
-            if end_point != len(images) - 1:
-                beg = end
-                end = len(images) - 1
-                arr, downU, downV = execute_opt_flow(images, beg, end, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices)
-                myfile.write("Flow Field (" + str(beg) + "-" + str(end) + ")\n")
-                myfile.write("X-Direction:\n")
-                for row in downU:
-                    # Convert each row to a string and join with spaces
-                    row_str = ''.join(map(str, row))
-                    myfile.write(row_str + '\n')
-                myfile.write('\n')
-                myfile.write("Y-Direction:\n")
-                for row in downV:
-                    # Convert each row to a string and join with spaces
-                    row_str = ''.join(map(str, row))
-                    myfile.write(row_str + '\n')
-                myfile.write('\n')
-                xMeans, yMeans, vxMeans, vyMeans, speeds, divs = arr
+        myfile = open(filename, "w")
+        csvwriter = csv.writer(myfile)
 
-    else: 
-        for beg in range(0, end_point, frame_stride):
-            end = beg + frame_stride
-            arr = execute_opt_flow(images, beg, end, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices)
-            xMeans, yMeans, vxMeans, vyMeans, speeds, divs = arr
-            pos += 1
-        if end_point != len(images) - 1:
-            beg = end
-            end = len(images) - 1
-            arr = execute_opt_flow(images, beg, end, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices)
-            xMeans, yMeans, vxMeans, vyMeans, speeds, divs = arr
+    else: csvwriter = None
+    
+    for beg in range(0, end_point, frame_stride):
+        end = beg + frame_stride
+        arr = execute_opt_flow(images, beg, end, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices, save_intermediates, csvwriter)
+        xMeans, yMeans, vxMeans, vyMeans, speeds, divs = arr
+        pos += 1
+    if end_point != len(images) - 1:
+        beg = end
+        end = len(images) - 1
+        arr = execute_opt_flow(images, beg, end, divs, xMeans, yMeans, vxMeans, vyMeans, speeds, pos, xindices, yindices, save_intermediates, csvwriter)
+        xMeans, yMeans, vxMeans, vyMeans, speeds, divs = arr
+
+    if save_intermediates:
+        myfile.close()
     
     direct = math.atan2(yMeans.mean(), xMeans.mean())
     mean_div = divs.mean()

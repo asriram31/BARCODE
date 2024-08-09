@@ -4,7 +4,7 @@ import imageio.v3 as iio
 # from numpy.polynomial import Polynomial, polyroots
 from nd2reader import ND2Reader
 from scipy.interpolate import splrep, sproot, BSpline
-import scipy
+import scipy, csv, os
 from scipy.stats import mode
 import scipy.signal as signal
 
@@ -40,35 +40,37 @@ def analyze_frames(name, video, threshold_percentage, frames_percent, save_inter
     last_frames = [video[num_frames - 1 - i] for i in range(num_frames_analysis)]
 
     if save_intermediates:
-        filename = name + '_IntensityDistribution.txt'
+        filename = os.path.join(name, 'IntensityDistribution.csv')
         with open(filename, "w") as myfile:
-            for frame_idx in range(num_frames_analysis):
-                myfile.write('Frame ' + str(frame_idx) + '\n')
+            csvwriter = csv.writer(myfile)
+            for frame_idx in range(0, num_frames_analysis, 1):
+                csvwriter.writerow(['Frame ' + str(frame_idx)])
                 frame_data = video[frame_idx]
-                for row in frame_data:
-                    row_str = ' '.join(map(str, row))
-                    myfile.write(row_str + ' ')
-                myfile.write('\n')
-            for frame_idx in range(num_frames_analysis):
-                myfile.write('Frame ' + str(num_frames - 1 - frame_idx) + '\n')
+                frame_values, frame_counts = np.unique(frame_data, return_counts = True)
+                csvwriter.writerow(frame_values)
+                csvwriter.writerow(frame_counts)
+                csvwriter.writerow([])
+
+            for frame_idx in range(num_frames_analysis, 0, -1):
+                csvwriter.writerow(['Frame ' + str(num_frames - 1 - frame_idx)])
                 frame_data = video[num_frames - 1 - frame_idx]
-                for row in frame_data:
-                    row_str = ' '.join(map(str, row))
-                    myfile.write(row_str + ' ')
-                myfile.write('\n')
-        # with open(filename, "w") as myfile:
-        #     for i in range(num_frames_analysis):
-        #         row_str = ''.join(map(str, im[i]))
-        #         myfile.write(row_str + '\n')
-        # with open(filename, "w") as my_file:
-        #     my_file.write("First Frames\n")
-        #     for i in range(num_frames_analysis):
-        #         data = str(video[i].flatten())
-        #         my_file.write(data + '\n')
-        #     my_file.write("Last Frames\n")
-        #     for i in range(num_frames_analysis):
-        #         data = str(video[num_frames - 1 - i].flatten())
-        #         my_file.write(data + '\n')
+                frame_values, frame_counts = np.unique(frame_data, return_counts = True)
+                csvwriter.writerow(frame_values)
+                csvwriter.writerow(frame_counts)
+                csvwriter.writerow([])
+
+                
+                # for row in frame_data:
+                #     row_str = ' '.join(map(str, row))
+                #     myfile.write(row_str + ' ')
+                # myfile.write('\n')
+            # for frame_idx in range(num_frames_analysis):
+            #     myfile.write('Frame ' + str(num_frames - 1 - frame_idx) + '\n')
+            #     frame_data = video[num_frames - 1 - frame_idx]
+            #     for row in frame_data:
+            #         row_str = ' '.join(map(str, row))
+            #         myfile.write(row_str + ' ')
+            #     myfile.write('\n')
             
         
     # Calculate the average difference, mean, and mode for the first and last five frames for each channel
@@ -94,7 +96,9 @@ def analyze_frames(name, video, threshold_percentage, frames_percent, save_inter
         coarsening_result = 1
     return coarsening_result
 
-def check_coarse(file, name, channel, first_frame, last_frame, threshold_percentage, frames_percent, save_intermediates):
+def check_coarse(file, name, channel, first_frame, last_frame, threshold_percentage, frames_percent, save_intermediates, verbose):
+    vprint = print if verbose else lambda *a, **k: None
+    vprint('Beginning Coarsening Testing')
     extrema_bounds_list = []
     extrema_bounds_idx_list = []
     areas_list = []

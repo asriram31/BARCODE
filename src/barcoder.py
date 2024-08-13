@@ -1,5 +1,5 @@
 from reader import read_file
-import os, csv, sys, yaml, time
+import os, csv, sys, yaml, time, functools, builtins
 from resilience_tracker import check_resilience
 from flow_tracker import check_flow
 from coarse_tracker import check_coarse
@@ -26,6 +26,7 @@ def execute_htp(filepath, config_data):
     rgb_map = config_data['writer']['generate_rgb_map']
     generate_barcode = config_data['writer']['generate_barcode']
     
+    print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
 
     def check(channel, resilience, flow, coarse, resilience_data, flow_data, coarse_data, generate_barcode):
@@ -153,7 +154,7 @@ def process_directory(root_dir, config_data):
     verbose = config_data['reader']['verbose']
     writer_data = config_data['writer']
     generate_barcode, generate_rgb_map, save_intermediates, stitch_barcode = writer_data.values()
-
+    print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     
     if os.path.isfile(root_dir):
@@ -217,7 +218,7 @@ def process_directory(root_dir, config_data):
                 except TypeError:
                     continue
                 except Exception as e:
-                    with open(os.path.join(root_dir, "failed_files.txt"), "a") as log_file:
+                    with open(os.path.join(root_dir, "failed_files.txt"), "a", encoding="utf-8") as log_file:
                         log_file.write(f"FileL {file_path}, Exception: {str(e)}\n")
                     continue
                 if rfc_data == None:

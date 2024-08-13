@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import imageio.v3 as iio
 from nd2reader import ND2Reader
-import math, pims, yaml, gc, csv, os, glob, pickle
+import math, pims, yaml, gc, csv, os, glob, pickle, functools, builtins
 from numpy.polynomial import Polynomial
 
 from skimage import measure, io
@@ -120,6 +120,7 @@ def track_void(image, name, threshold, step, save_intermediates):
     return void_lst, island_area_lst, island_position_lst
 
 def check_resilience(file, name, channel, R_offset, percent_threshold_loss, percent_threshold_gain, frame_step, frame_start_percent, frame_stop_percent, save_intermediates, verbose):
+    print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Resilience Testing...')
     #Note for parameters: frame_step (stepsize) used to reduce the runtime. 

@@ -4,7 +4,7 @@ import imageio.v3 as iio
 # from numpy.polynomial import Polynomial, polyroots
 from nd2reader import ND2Reader
 from scipy.interpolate import splrep, sproot, BSpline
-import scipy, csv, os
+import scipy, csv, os, functools, builtins
 from scipy.stats import mode
 import scipy.signal as signal
 
@@ -97,6 +97,7 @@ def analyze_frames(name, video, threshold_percentage, frames_percent, save_inter
     return coarsening_result
 
 def check_coarse(file, name, channel, first_frame, last_frame, threshold_percentage, frames_percent, save_intermediates, verbose):
+    print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Coarsening Testing')
     extrema_bounds_list = []

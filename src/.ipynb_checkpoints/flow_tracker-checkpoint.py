@@ -5,7 +5,7 @@ import cv2 as cv
 from scipy.fft import fft2, ifft2
 from scipy.interpolate import Akima1DInterpolator
 from scipy import optimize
-import os, math, csv
+import os, math, csv, functools, builtins
 
 def divergence_npgrad(flow):
     flow = np.swapaxes(flow, 0, 1)
@@ -15,6 +15,7 @@ def divergence_npgrad(flow):
     return dFx_dx + dFy_dy
 
 def check_flow(file, name, channel, frame_stride, downsample, return_graphs, save_intermediates, verbose):
+    print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Flow Testing')
     #Cutoff magnitude to consider a vector to be null; also helps to avoid divide-by-zero errors

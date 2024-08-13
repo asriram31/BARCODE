@@ -1,5 +1,5 @@
 from reader import read_file
-import os, csv, sys, yaml, time
+import os, csv, sys, yaml, time, functools, builtins
 from resilience_tracker import check_resilience
 from flow_tracker import check_flow
 from coarse_tracker import check_coarse
@@ -146,7 +146,7 @@ def main():
     else: 
         config_data = set_config_data(settings)
 
-    print(dir_name)
+    print(dir_name, flush = True)
     
     process_directory(dir_name, config_data)
 

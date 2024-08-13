@@ -1,9 +1,10 @@
-import os, pims
+import os, pims, functools, builtins
 import imageio.v3 as iio
 import numpy as np
 from nd2reader import ND2Reader
 
 def read_file(file_path, accept_dim = False):
+    print = functools.partial(builtins.print, flush=True)
     acceptable_formats = ('.tiff', '.tif', '.nd2')
     if (os.path.exists(file_path) and file_path.endswith(acceptable_formats)) == False:
         return None

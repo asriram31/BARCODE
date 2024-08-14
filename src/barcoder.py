@@ -184,7 +184,7 @@ def process_directory(root_dir, config_data):
         output_filepath = os.path.join(dir_name, filename + 'summary.csv')
 
         write_file(output_filepath, all_data)
-        if stitch_barcode and generate_rgb_map:
+        if stitch_barcode:
             output_figpath = os.path.join(dir_name, filename + 'barcodes.png')
             generate_stitched_barcode(all_barcode_data, output_figpath)
 
@@ -237,7 +237,7 @@ def process_directory(root_dir, config_data):
         output_filepath = os.path.join(root_dir, "summary.csv")
         write_file(output_filepath, all_data)
         
-        if stitch_barcode and generate_rgb_map:
+        if stitch_barcode:
             output_figpath = os.path.join(root_dir, 'summary_barcode.png')
             generate_stitched_barcode(all_barcode_data, output_figpath)
 

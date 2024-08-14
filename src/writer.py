@@ -79,7 +79,7 @@ def generate_stitched_barcode(barcodes, figpath=None):
     plasma_colormap = plt.get_cmap('plasma')
     
     # Create a figure and axis
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
     
     # Repeat each barcode to make it more visible
     barcode_image = np.repeat(stitched_barcodes, 10, axis=0)  # Adjust the repetition factor as needed

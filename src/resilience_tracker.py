@@ -23,10 +23,10 @@ def check_span(image, R_thresh):
         # Ensures that either 
         if axis == 0:
             first = (frame[0] == 1).any()
-            last = (frame[len(frame) - 1] == 1).any()
+            last = (frame[frame.shape[0] - 1] == 1).any()
         elif axis == 1:
             first = (frame[:,0] == 1).any()
-            last = (frame[:,len(frame[:]) - 1] == 1).any()
+            last = (frame[:,frame.shape[1] - 1] == 1).any()
         else:
             raise Exception("Axis must be 0 or 1.")
     
@@ -107,15 +107,6 @@ def track_void(image, name, threshold, step, save_intermediates):
 
     if save_intermediates:
         f.close()
-    # if save_intermediates:
-    #         f.write(str(bin_video.shape[1]) + ',' + str(bin_video.shape[2]) + '\n')
-    #         for frame_idx in range(0, len(bin_video)):
-    #             f.write(str(frame_idx) + '\n')
-    #             for row in bin_video[frame_idx]:
-    #                 # Convert each row to a string and join with spaces
-    #                 row_str = ''.join(map(str, row))
-    #                 f.write(row_str + '\n')
-    #             f.write('\n')
 
     return void_lst, island_area_lst, island_position_lst
 
@@ -136,7 +127,7 @@ def check_resilience(file, name, channel, R_offset, percent_threshold_loss, perc
     largest_void_lst, island_area_lst, island_position_lst = track_void(image, name, R_offset, frame_step, save_intermediates)
     start_index = int(len(largest_void_lst) * frame_start_percent)
     stop_index = int(len(largest_void_lst) * frame_stop_percent)
-    start_initial_index = int(len(largest_void_lst)*frame_initial_percent)
+    start_initial_index = int(np.ceil(len(largest_void_lst)*frame_initial_percent))
 
     percent_gain_initial_list = np.mean(largest_void_lst[0:start_initial_index])
     percent_gain_list = np.array(largest_void_lst)/percent_gain_initial_list

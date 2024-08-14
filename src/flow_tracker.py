@@ -6,6 +6,7 @@ from scipy.fft import fft2, ifft2
 from scipy.interpolate import Akima1DInterpolator
 from scipy import optimize
 import os, math, csv, functools, builtins
+import matplotlib.ticker as ticker
 
 def divergence_npgrad(flow):
     flow = np.swapaxes(flow, 0, 1)
@@ -55,11 +56,14 @@ def check_flow(file, name, channel, frame_stride, downsample, return_graphs, sav
             writer.writerows(downV)
         speed = (downU ** 2 + downV ** 2) ** (1/2)
         if np.isin(beg, positions) and return_graphs:
-            fig2, ax2 = plt.subplots(figsize=(10,10))
-            q = ax2.quiver(xindices, yindices, downU, downV,color='blue')
-            figpath2 = os.path.join(name,  'Frame '+ str(beg) + ' Flow Field.png')
-            fig2.savefig(figpath2)
-            plt.close(fig2)
+            fig, ax = plt.subplots(figsize=(10,10))
+            q = ax.quiver(downU, downV,color='blue')
+            figpath = os.path.join(name,  'Frame '+ str(beg) + ' Flow Field.png')
+            ticks_adj = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x * downsample))
+            ax.xaxis.set_major_formatter(ticks_adj)
+            ax.yaxis.set_major_formatter(ticks_adj)
+            fig.savefig(figpath)
+            plt.close(fig)
         vxMeans = np.append(vxMeans, downU.mean())
         vyMeans = np.append(vyMeans, downV.mean())        
         speeds = np.append(speeds, speed.mean())

@@ -66,6 +66,9 @@ def read_file(file_path, accept_dim = False):
 
     # file = bleach_correction(file)
 
+    if len(file.shape) == 2:
+        print("Static image: can not capture dynamics, skipping to next file...")
+
     if (file == 0).all():
         print('Empty file: can not process, skipping to next file...')
         return None

@@ -20,7 +20,7 @@ def check_span(image, R_thresh):
         return new_frame
     
     def check_connected(frame, axis=0):
-        # Ensures that either 
+        # Ensures that either connected across left-right or up-down axis
         if axis == 0:
             first = (frame[0] == 1).any()
             last = (frame[frame.shape[0] - 1] == 1).any()
@@ -125,8 +125,8 @@ def check_resilience(file, name, channel, R_offset, percent_threshold_loss, perc
         return [None] * 7
     
     largest_void_lst, island_area_lst, island_position_lst = track_void(image, name, R_offset, frame_step, save_intermediates)
-    start_index = int(len(largest_void_lst) * frame_start_percent)
-    stop_index = int(len(largest_void_lst) * frame_stop_percent)
+    start_index = int(np.floor(len(largest_void_lst) * frame_start_percent))
+    stop_index = int(np.ceil(len(largest_void_lst) * frame_stop_percent))
     start_initial_index = int(np.ceil(len(largest_void_lst)*frame_initial_percent))
 
     percent_gain_initial_list = np.mean(largest_void_lst[0:start_initial_index])

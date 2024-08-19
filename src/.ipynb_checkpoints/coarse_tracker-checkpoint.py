@@ -17,7 +17,7 @@ def calculate_mean_mode(frame):
 
 def analyze_frames(name, video, threshold_percentage, frames_percent, save_intermediates):
     num_frames = video.shape[0]
-    num_frames_analysis = int(frames_percent * num_frames)
+    num_frames_analysis = int(np.ceil(frames_percent * num_frames))
     def get_mean_mode_diffs(frames):
         diffs = []
         means = []

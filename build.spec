@@ -1,12 +1,3 @@
-# -*- mode: python ; coding: utf-8 -*-
-"""
-Example build.spec file
-
-This hits most of the major notes required for
-building a stand alone version of your Gooey application.
-"""
-
-
 import os
 import platform
 import gooey
@@ -21,31 +12,41 @@ from PyInstaller.building.osx import BUNDLE
 
 block_cipher = None
 
-a = Analysis(['src/main.py'],  # replace me with your path
-             pathex=['src/main.py'],
+a = Analysis(['/Users/adityasriram/Documents/htp-screening/src/main.py'],  # replace me with your path
+             pathex=['/Users/adityasriram/Documents/htp-screening/src'],
+             binaries=None,
+             data=None,
              hiddenimports=[],
              hookspath=None,
              runtime_hooks=None,
+             excludes=None
              )
 pyz = PYZ(a.pure)
 
-options = [('u', None, 'OPTION'), ('v', None, 'OPTION'), ('w', None, 'OPTION')]
-
+options = [('u', None, 'OPTION')]
 
 exe = EXE(pyz,
           a.scripts,
-          a.binaries,
-          a.zipfiles,
-          a.datas,
-          options,
-          gooey_languages,
-          gooey_images,
+          [],
+          exclude_binaries=True,
+          # gooey_languages,
+          # gooey_images,
           name='DMREF BARCODE',
           debug=False,
-          strip=None,
+          strip=False,
           upx=True,
           console=False,
           icon=os.path.join(gooey_root, 'images', 'program_icon.ico'))
+
+coll = COLLECT(exe,
+               a.binaries,
+               a.zipfiles,
+               a.datas,
+               strip=False,
+               upx=True,
+               upx_exclude=[],
+               name='DMREF BARCODE')
+
 
 info_plist = {'addition_prop': 'additional_value'}
 app = BUNDLE(exe,

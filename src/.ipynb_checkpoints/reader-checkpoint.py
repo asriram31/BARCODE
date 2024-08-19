@@ -9,6 +9,12 @@ def read_file(file_path, accept_dim = False):
     if (os.path.exists(file_path) and file_path.endswith(acceptable_formats)) == False:
         return None
 
+    file_size = os.path.getsize(file_path)
+    file_size_gb = file_size / (1024 ** 3)
+    if file_size_gb > 5:
+        print("File size is too large -- this program does not process files larger than 5 GB.")
+        return None
+
     def check_first_frame_dim(file):
         min_intensity = np.min(file[0])
         mean_intensity = np.mean(file[0])
@@ -68,6 +74,9 @@ def read_file(file_path, accept_dim = False):
 
     if len(file.shape) == 2:
         print("Static image: can not capture dynamics, skipping to next file...")
+
+    if len(file) <= 5:
+        print("Too few frames, unable to capture dynamics, skipping to next file...")
 
     if (file == 0).all():
         print('Empty file: can not process, skipping to next file...')

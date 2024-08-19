@@ -23,7 +23,6 @@ def execute_htp(filepath, config_data):
     f_data = config_data['flow_parameters']
     c_data = config_data['coarse_parameters']
     stitch_barcode = config_data['writer']['stitch_barcode']
-    rgb_map = config_data['writer']['generate_rgb_map']
     generate_barcode = config_data['writer']['generate_barcode']
     
     print = functools.partial(builtins.print, flush=True)
@@ -39,12 +38,10 @@ def execute_htp(filepath, config_data):
         
         if resilience == True:
             r_offset = resilience_data['r_offset']
-            pt_gain, pt_loss= resilience_data['percent_threshold'].values()
             f_step = resilience_data['frame_step']
             f_start, f_stop = resilience_data['evaluation_settings'].values()
-            r, rfig, void_value, spanning, island_size, island_movement, void_growth = check_resilience(file, fig_channel_dir_name, channel, r_offset, pt_loss, pt_gain, f_step, f_start, f_stop, save_intermediates, verbose)
+            rfig, void_value, spanning, island_size, island_movement, void_growth = check_resilience(file, fig_channel_dir_name, channel, r_offset, f_step, f_start, f_stop, save_intermediates, verbose)
         else:
-            r = None
             rfig = None
             spanning = None
             void_value = None
@@ -53,22 +50,24 @@ def execute_htp(filepath, config_data):
             void_growth = None
         if flow == True:
             downsample, frame_step = flow_data.values()
-            direct, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, return_graphs, save_intermediates, verbose)
+            direct, directSD, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, return_graphs, save_intermediates, verbose)
         else:
             direct = None
+            directSD = None
             avg_vel = None
             avg_speed = None
             avg_div = None
         if coarse == True:
             fframe, lframe = coarse_data['evaluation_settings'].values()
-            t_percent = coarse_data['threshold_percentage']
             percent_frames = coarse_data['mean_mode_frames_percent']
-            c, cfig, c_area1, c_area2 = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, t_percent, percent_frames, save_intermediates, verbose)
+            c, cfig, c_area1, c_area2, kurt_diff, skew_diff = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, percent_frames, save_intermediates, verbose)
         else:
             c = None
             cfig = None
             c_area1 = None
             c_area2 = None
+            kurt_diff = None
+            skew_diff = None
 
         figpath = os.path.join(fig_channel_dir_name, 'Summary Graphs.png')
         if return_graphs == True:
@@ -94,11 +93,11 @@ def execute_htp(filepath, config_data):
         plt.close(rfig)
         plt.close(cfig)
 
-        result = [channel, r, spanning, island_size, void_value, void_growth,  c, c_area1, c_area2, avg_vel, avg_speed, avg_div, island_movement, direct]
+        result = [channel, spanning, island_size, void_value, void_growth,  c, c_area1, c_area2, kurt_diff, skew_diff, avg_vel, avg_speed, avg_div, island_movement, direct, directSD]
 
-        figpath2 = os.path.join(fig_channel_dir_name, 'Channel ' + str(channel) + ' Barcode.png')
+        barcode = create_barcode(result)
 
-        barcode = create_barcode(figpath2, result, generate_barcode)
+        vprint('Channel Screening Completed')
             
         return barcode, result
     
@@ -122,9 +121,7 @@ def execute_htp(filepath, config_data):
                 continue
             barcode, results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data, generate_barcode)
             rfc.append(results)
-            if rgb_map:
-                rgb.append(barcode)
-            if rgb_map and stitch_barcode:
+            if stitch_barcode:
                     barcodes.append(barcode)
     
     else:
@@ -135,9 +132,7 @@ def execute_htp(filepath, config_data):
             vprint('Warning: channel is dim. Accuracy of screening may be limited by this.')
         barcode, results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data, generate_barcode)
         rfc.append(results)
-        if rgb_map:
-            rgb.append(barcode)
-        if rgb_map and stitch_barcode:
+        if stitch_barcode:
             barcodes.append(barcode)
 
     return rgb, barcodes, rfc
@@ -153,7 +148,7 @@ def remove_extension(filepath):
 def process_directory(root_dir, config_data):
     verbose = config_data['reader']['verbose']
     writer_data = config_data['writer']
-    generate_barcode, generate_rgb_map, save_intermediates, stitch_barcode = writer_data.values()
+    generate_barcode, save_intermediates, stitch_barcode = writer_data.values()
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     
@@ -219,7 +214,7 @@ def process_directory(root_dir, config_data):
                     continue
                 except Exception as e:
                     with open(os.path.join(root_dir, "failed_files.txt"), "a", encoding="utf-8") as log_file:
-                        log_file.write(f"FileL {file_path}, Exception: {str(e)}\n")
+                        log_file.write(f"File: {file_path}, Exception: {str(e)}\n")
                     continue
                 if rfc_data == None:
                     continue

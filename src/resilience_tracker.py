@@ -11,22 +11,16 @@ from skimage.measure import label, regionprops
 
 from scipy import ndimage
 
-def check_span(image, R_thresh):
-    
-    def binarize(frame, offset_threshold):
-        avg_intensity = np.mean(frame)
-        threshold = avg_intensity * (1 + offset_threshold)
-        new_frame = np.where(frame < threshold, 0, 1)
-        return new_frame
-    
+def check_span(frame):
+
     def check_connected(frame, axis=0):
         # Ensures that either connected across left-right or up-down axis
         if axis == 0:
             first = (frame[0] == 1).any()
-            last = (frame[frame.shape[0] - 1] == 1).any()
+            last = (frame[-1] == 1).any()
         elif axis == 1:
             first = (frame[:,0] == 1).any()
-            last = (frame[:,frame.shape[1] - 1] == 1).any()
+            last = (frame[:,-1] == 1).any()
         else:
             raise Exception("Axis must be 0 or 1.")
     
@@ -49,11 +43,8 @@ def check_span(image, R_thresh):
             return 1
         else:
             return 0
-        
-        
-    first_frame = binarize(image[0], R_thresh)
-    last_frame = binarize(image[-1], R_thresh)
-    return (check_connected(first_frame) and check_connected(last_frame)) or (check_connected(first_frame, axis = 1) and check_connected(last_frame, axis = 1))
+    
+    return (check_connected(frame, axis = 0) or check_connected(frame, axis = 1))
 
 def track_void(image, name, threshold, step, save_intermediates):
     downsample = 4
@@ -86,9 +77,11 @@ def track_void(image, name, threshold, step, save_intermediates):
         filename = os.path.join(name, 'BinarizationData.csv')
         f = open(filename, 'w')
         csvwriter = csv.writer(f)
+        
     void_lst = []
     island_area_lst = []
     island_position_lst = []
+    connected_lst = []
     
     for i in range(0, len(image), step):
         new_image = image[i][xindices][:,yindices]
@@ -97,20 +90,18 @@ def track_void(image, name, threshold, step, save_intermediates):
             csvwriter.writerow([str(i)])
             csvwriter.writerows(new_frame)
             csvwriter.writerow([])
-        # bin_video[int(i/step)] = new_frame
-        void_area = find_largest_void(new_frame)
-        island_area = find_largest_void(new_frame, find_void = False)
-        island_position = largest_island_position(new_frame)
-        void_lst.append(void_area)
-        island_area_lst.append(island_area)
-        island_position_lst.append(island_position)
+        
+        void_lst.append(find_largest_void(new_frame))
+        island_area_lst.append(find_largest_void(new_frame, find_void = False))
+        island_position_lst.append(largest_island_position(new_frame))
+        connected_lst.append(check_span(new_frame))
 
     if save_intermediates:
         f.close()
 
-    return void_lst, island_area_lst, island_position_lst
+    return void_lst, island_area_lst, island_position_lst, connected_lst
 
-def check_resilience(file, name, channel, R_offset, percent_threshold_loss, percent_threshold_gain, frame_step, frame_start_percent, frame_stop_percent, save_intermediates, verbose):
+def check_resilience(file, name, channel, R_offset, frame_step, frame_start_percent, frame_stop_percent, save_intermediates, verbose):
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Resilience Testing...')
@@ -122,9 +113,9 @@ def check_resilience(file, name, channel, R_offset, percent_threshold_loss, perc
 
     # Error Checking: Empty Image
     if (image == 0).all():
-        return [None] * 7
+        return [None] * 6
     
-    largest_void_lst, island_area_lst, island_position_lst = track_void(image, name, R_offset, frame_step, save_intermediates)
+    largest_void_lst, island_area_lst, island_position_lst, connected_lst = track_void(image, name, R_offset, frame_step, save_intermediates)
     start_index = int(np.floor(len(largest_void_lst) * frame_start_percent))
     stop_index = int(np.ceil(len(largest_void_lst) * frame_stop_percent))
     start_initial_index = int(np.ceil(len(largest_void_lst)*frame_initial_percent))
@@ -143,23 +134,12 @@ def check_resilience(file, name, channel, R_offset, percent_threshold_loss, perc
     island_movement = np.array(island_position_lst)[:-1,:] - np.array(island_position_lst)[1:,:]
     island_speed = np.linalg.norm(island_movement,axis = 1)
     island_direction = np.arctan2(island_movement[:,1],island_movement[:,0])
-    island_direction = island_direction[np.where(island_speed < 15)]
+    thresh_speed = 15
+    while len(island_direction[np.where(island_speed < thresh_speed)]) == 0:
+        thresh_speed += 1
+    island_direction = island_direction[np.where(island_speed < thresh_speed)]
     average_direction = np.average(island_direction)
-    #Give judgement
-    if avg_percent_change >= percent_threshold_loss and avg_percent_change <= percent_threshold_gain or max_void_size < 0.10:
-        verdict = 1
-    else:
-        verdict = 0
     
-    spanning = check_span(image, R_offset)
+    spanning = len([con for con in connected_lst if con == 1])/len(connected_lst)
     
-    return verdict, fig, max_void_size, spanning, island_size, average_direction, avg_percent_change
-
-def main():
-    file = read_file(sys.argv[1])
-    channel = read_file(sys.argv[2])
-    verdict, fig, void_value, spanning, island_size, average_direction, avg_percent_change = check_resilience(file, channel)
-
-if __name__ == "__main__":
-    main()
-    
+    return fig, max_void_size, spanning, island_size, average_direction, avg_percent_change

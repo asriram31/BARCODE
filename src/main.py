@@ -45,7 +45,6 @@ def main():
     gc.add_argument('--return_graphs', metavar='Save Graphs', help='Click to save graphs representing sample changes', widget='CheckBox', action='store_true')
     gc.add_argument('--return_intermediates', metavar='Intermediates', help='Click to save intermediate data structures (flow fields, binarized images, intensity distributions)', widget='CheckBox', action='store_true')
     
-    gc.add_argument('--generate_rgb_map', metavar='Generate RGB Map', help="Click to output the RGB map", widget="CheckBox", action='store_true')
     gc.add_argument('--generate_barcode', metavar='Generate Barcode', help="Click to create barcodes for the dataset", widget="CheckBox", action='store_true')
     gc.add_argument('--stitch_barcode', metavar='Dataset Barcode', help="Generates a barcode for the entire dataset, instead of for individual videos (only occurs if barcode is generated)", widget="CheckBox", action='store_true')
 
@@ -60,16 +59,6 @@ def main():
         'min':-1.0,
         'max':1.0,
         'increment':0.05
-    })
-    res_settings.add_argument('--pt_loss', metavar='Percent Threshold Loss', help="Percentage of original void size that final void size must be greater than to considered resilient", widget='DecimalField', default = 0.9, gooey_options = {
-        'min':0,
-        'max':1,
-        'increment':0.05 
-    })
-    res_settings.add_argument('--pt_gain', metavar='Percent Threshold Gain', help="Percentage of original void size that final void size must be less than to considered resilient", widget='DecimalField', default = 1.1, gooey_options = {
-        'min':1,
-        'max':5,
-        'increment':0.05 
     })
 
     res_settings.add_argument('--res_f_step', metavar = 'Frame Step', help = "Controls how many frames between evaluated frames", widget='Slider', default=10, gooey_options = {
@@ -111,12 +100,6 @@ def main():
     coarse_settings.add_argument('--last_frame', metavar = 'Last Frame', help = "Select which frame is used as the second frame for intensity distribution comparisons (0 for the final frame of video)", widget = 'IntegerField', default=0, gooey_options = {
         'min':0,
         'increment':1
-    })
-
-    coarse_settings.add_argument('--thresh_percent', metavar = 'Threshold Percentage', help = 'Select the threshold percentage mean-mode difference between the final and initial intensity distributions; adjust for different objective lenses (5-7 for 60x objective lens, 1 for 20x, etc)', widget = 'Slider', default = 6, gooey_options = {
-        'min': 1,
-        'max': 8,
-        'increment': 1
     })
 
     coarse_settings.add_argument('--pf_evaluation', metavar = 'Percent of Frames Evaluated', help = "Determine what percent of frames are evaluated for intensity distribution comparison using mean-mode comparison", widget = 'DecimalField', default = 0.1, gooey_options = {
@@ -171,7 +154,6 @@ def set_config_data(args = None):
         
         writer_data = {
             'generate_barcode':args.generate_barcode,
-            'generate_rgb_map':args.generate_rgb_map,
             'return_intermediates':args.return_intermediates,
             'stitch_barcode':args.stitch_barcode
         }
@@ -181,10 +163,6 @@ def set_config_data(args = None):
                 'evaluation_settings':{
                     'f_start':float(args.pf_start),
                     'f_stop':float(args.pf_stop)
-                },
-                'percent_threshold':{
-                    'pt_gain':float(args.pt_gain),
-                    'pt_loss':float(args.pt_loss) 
                 },
                 'frame_step':int(args.res_f_step),
                 'r_offset':float(args.r_offset),
@@ -202,7 +180,6 @@ def set_config_data(args = None):
                     'last_frame':False if int(args.last_frame) == 0 else int(args.last_frame)
                 },
                 'mean_mode_frames_percent':float(args.pf_evaluation),
-                'threshold_percentage':float(args.thresh_percent)
             }
 
         config_data = {

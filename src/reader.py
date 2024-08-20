@@ -74,9 +74,11 @@ def read_file(file_path, accept_dim = False):
 
     if len(file.shape) == 2:
         print("Static image: can not capture dynamics, skipping to next file...")
+        return None
 
     if len(file) <= 5:
         print("Too few frames, unable to capture dynamics, skipping to next file...")
+        return None
 
     if (file == 0).all():
         print('Empty file: can not process, skipping to next file...')

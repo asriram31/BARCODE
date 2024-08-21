@@ -27,7 +27,7 @@ def execute_htp(filepath, config_data):
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
 
-    def check(channel, resilience, flow, coarse, resilience_data, flow_data, coarse_data, generate_barcode):
+    def check(channel, resilience, flow, coarse, resilience_data, flow_data, coarse_data):
         figure_dir_name = remove_extension(filepath) + ' BARCODE Output'
         fig_channel_dir_name = os.path.join(figure_dir_name, 'Channel ' + str(channel))
         if not os.path.exists(figure_dir_name):
@@ -116,7 +116,7 @@ def execute_htp(filepath, config_data):
             if check_channel_dim(file[:,:,:,channel]) and not accept_dim_channel:
                 vprint('Channel too dim, not enough signal, skipping...')
                 continue
-            barcode, results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data, generate_barcode)
+            barcode, results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
             rfc.append(results)
             if stitch_barcode:
                     barcodes.append(barcode)
@@ -129,7 +129,7 @@ def execute_htp(filepath, config_data):
         vprint('Channel: ', channel_select)
         if check_channel_dim(file[:,:,:,channel_select]):
             vprint('Warning: channel is dim. Accuracy of screening may be limited by this.')
-        barcode, results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data, generate_barcode)
+        barcode, results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data)
         rfc.append(results)
         if stitch_barcode:
             barcodes.append(barcode)
@@ -147,7 +147,7 @@ def remove_extension(filepath):
 def process_directory(root_dir, config_data):
     verbose = config_data['reader']['verbose']
     writer_data = config_data['writer']
-    generate_barcode, save_intermediates, stitch_barcode = writer_data.values()
+    save_intermediates, stitch_barcode = writer_data.values()
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     

@@ -4,7 +4,7 @@ import numpy as np
 
 def write_file(output_filepath, data):
     if data:
-        headers = ['Channel', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intensity Difference Area 2', 'Kurtosis', 'Skewness', 'Average Velocity', 'Average Speed', 'Average Divergence', 'Island Movement Direction', 'Flow Direction', 'Flow Direction (Standard Deviation)']
+        headers = ['Channel', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intensity Difference Area 2', 'Kurtosis', 'Skewness', 'Mean Velocity', 'Mean Speed', 'Mean Divergence', 'Island Movement Direction', 'Mean Flow Direction', 'Flow Direction (Standard Deviation)']
         with open(output_filepath, 'w', newline='') as csvfile:
             csvwriter = csv.writer(csvfile)
             csvwriter.writerow(headers) # Write headers before the first filename

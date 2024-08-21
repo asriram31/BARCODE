@@ -19,12 +19,12 @@ def main():
 
     # File/Directory Selection
     fdc = gc.add_mutually_exclusive_group()
-    fdc.add_argument('--file_path', metavar = 'File Chooser', widget='FileChooser', gooey_options = {
+    fdc.add_argument('--file_path', metavar = 'File Selection', widget='FileChooser', gooey_options = {
         'wildcard': "Document (*.nd2)|*.nd2|"
         "TIFF Image (*.tiff)|*.tiff|"
         "TIFF Image (*.tif)|*.tif"
     })
-    fdc.add_argument('--dir_path', metavar='Directory Chooser', widget='DirChooser')
+    fdc.add_argument('--dir_path', metavar='Folder Selection', widget='DirChooser')
     # Channel Selection
     c_select = gc.add_mutually_exclusive_group()
     c_select.add_argument('--channels', metavar='Parse All Channels', widget='CheckBox', action='store_true')
@@ -34,19 +34,18 @@ def main():
     })
 
     # Reader Execution Settings
-    gc.add_argument('--check_resilience', metavar='Resilience', help='Evaluate sample(s) using binarization module', widget='CheckBox', action='store_true')
-    gc.add_argument('--check_flow', metavar='Flow', help='Evaluate sample(s) using optical flow module', widget='CheckBox',  action='store_true')
-    gc.add_argument('--check_coarsening', metavar='Coarsening', help='Evaluate sample(s) using intensity distribution module', widget='CheckBox', action='store_true')
-    gc.add_argument('--dim_images', metavar='Dim Images', help='Click to scan files that may be too dim to accurately profile', widget='CheckBox', action='store_true')
-    gc.add_argument('--dim_channels', metavar='Dim Channels', help='Click to scan channels that may be too dim to accurately profile', widget='CheckBox', action='store_true')
+    gc.add_argument('--check_resilience', metavar='Binarization', help='Evaluate sample(s) using binarization module', widget='CheckBox', action='store_true')
+    gc.add_argument('--check_flow', metavar='Optical Flow', help='Evaluate sample(s) using optical flow module', widget='CheckBox',  action='store_true')
+    gc.add_argument('--check_coarsening', metavar='Intensity Distribution', help='Evaluate sample(s) using intensity distribution module', widget='CheckBox', action='store_true')
+    gc.add_argument('--dim_images', metavar='Include Dim Files', help='Click to scan files that may be too dim to accurately profile', widget='CheckBox', action='store_true')
+    gc.add_argument('--dim_channels', metavar='Include Dim Channels', help='Click to scan channels that may be too dim to accurately profile', widget='CheckBox', action='store_true')
 
     # Writer Data
     gc.add_argument('--verbose', metavar='Verbose', help='Show more details', widget='CheckBox', action='store_true')
     gc.add_argument('--return_graphs', metavar='Save Graphs', help='Click to save graphs representing sample changes', widget='CheckBox', action='store_true')
-    gc.add_argument('--return_intermediates', metavar='Intermediates', help='Click to save intermediate data structures (flow fields, binarized images, intensity distributions)', widget='CheckBox', action='store_true')
+    gc.add_argument('--return_intermediates', metavar='Save Intermediates', help='Click to save intermediate data structures (flow fields, binarized images, intensity distributions)', widget='CheckBox', action='store_true')
     
-    gc.add_argument('--generate_barcode', metavar='Generate Barcode', help="Click to create barcodes for the dataset", widget="CheckBox", action='store_true')
-    gc.add_argument('--stitch_barcode', metavar='Dataset Barcode', help="Generates a barcode for the entire dataset, instead of for individual videos (only occurs if barcode is generated)", widget="CheckBox", action='store_true')
+    gc.add_argument('--stitch_barcode', metavar='Dataset Barcode', help="Generates an aggregate barcode for the dataset", widget="CheckBox", action='store_true')
 
     gc.add_argument('--configuration_file', metavar='Configuration YAML File', help="Load a preexisting configuration file for the settings", widget="FileChooser", gooey_options = {
         'wildcard': "YAML (*.yaml)|*.yaml|"
@@ -54,14 +53,14 @@ def main():
     })
 
 
-    res_settings = parser.add_argument_group('Resilience Settings')
-    res_settings.add_argument('--r_offset', metavar='Binarization Threshold', help='Adjust the pixel intensity threshold as a percentage of the mean (0 - 200%)', widget='DecimalField', default=0.1, gooey_options = {
+    res_settings = parser.add_argument_group('Binarization Settings')
+    res_settings.add_argument('--r_offset', metavar='Binarization Threshold', help='Adjust the binarization threshold as a percentage of the mean (calculated as (1 + offset) * mean)', widget='DecimalField', default=0.1, gooey_options = {
         'min':-1.0,
         'max':1.0,
         'increment':0.05
     })
 
-    res_settings.add_argument('--res_f_step', metavar = 'Frame Step', help = "Controls how many frames between evaluated frames", widget='Slider', default=10, gooey_options = {
+    res_settings.add_argument('--res_f_step', metavar = 'Frame Step', help = "Controls the interval between binarized frames", widget='Slider', default=10, gooey_options = {
         'min':1,
         'increment':1
     })
@@ -78,7 +77,7 @@ def main():
         'increment':0.05
     })
 
-    flow_settings = parser.add_argument_group('Flow Settings')
+    flow_settings = parser.add_argument_group('Optical Flow Settings')
 
     flow_settings.add_argument('--flow_f_step', metavar = 'Frame Step', help = "Controls the interval between frames the flow field is calculated at", widget = 'Slider', default = 40, gooey_options = {
         'min':1,
@@ -90,7 +89,7 @@ def main():
         'increment':1,
     })
 
-    coarse_settings = parser.add_argument_group('Coarsening Settings')
+    coarse_settings = parser.add_argument_group('Intensity Distribution Settings')
 
     coarse_settings.add_argument('--first_frame', metavar='First Frame', help = 'Controls which frame is used as the first frame for intensity distribution comparisons', widget='IntegerField', gooey_options = {
         'min':1,
@@ -102,7 +101,7 @@ def main():
         'increment':1
     })
 
-    coarse_settings.add_argument('--pf_evaluation', metavar = 'Percent of Frames Evaluated', help = "Determine what percent of frames are evaluated for intensity distribution comparison using mean-mode comparison", widget = 'DecimalField', default = 0.1, gooey_options = {
+    coarse_settings.add_argument('--pf_evaluation', metavar = 'Percent of Frames Evaluated', help = "Determine what fraction of frames are evaluated for intensity distribution comparison using mean-mode comparison", widget = 'DecimalField', default = 0.1, gooey_options = {
         'min':0.01,
         'max': 0.2,
         'increment':0.01
@@ -153,7 +152,6 @@ def set_config_data(args = None):
         }
         
         writer_data = {
-            'generate_barcode':args.generate_barcode,
             'return_intermediates':args.return_intermediates,
             'stitch_barcode':args.stitch_barcode
         }

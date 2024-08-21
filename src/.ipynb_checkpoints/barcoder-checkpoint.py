@@ -23,13 +23,12 @@ def execute_htp(filepath, config_data):
     f_data = config_data['flow_parameters']
     c_data = config_data['coarse_parameters']
     stitch_barcode = config_data['writer']['stitch_barcode']
-    generate_barcode = config_data['writer']['generate_barcode']
     
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
 
     def check(channel, resilience, flow, coarse, resilience_data, flow_data, coarse_data, generate_barcode):
-        figure_dir_name = remove_extension(filepath) + ' Output Data'
+        figure_dir_name = remove_extension(filepath) + ' BARCODE Output'
         fig_channel_dir_name = os.path.join(figure_dir_name, 'Channel ' + str(channel))
         if not os.path.exists(figure_dir_name):
             os.makedirs(figure_dir_name)
@@ -90,8 +89,7 @@ def execute_htp(filepath, config_data):
 
             plt.savefig(figpath)
             plt.close(fig)
-        plt.close(rfig)
-        plt.close(cfig)
+        plt.close('all')
 
         result = [channel, spanning, island_size, void_value, void_growth,  c, c_area1, c_area2, kurt_diff, skew_diff, avg_vel, avg_speed, avg_div, island_movement, direct, directSD]
 
@@ -111,7 +109,6 @@ def execute_htp(filepath, config_data):
     
     rfc = []
     barcodes = []
-    rgb = []
     if channel_select == 'All':
         vprint('Total Channels:', channels)
         for channel in range(channels):
@@ -127,6 +124,8 @@ def execute_htp(filepath, config_data):
     else:
         while channel_select < 0:
             channel_select = channels + channel_select # -1 will correspond to last channel, etc
+        if channel_select >= channels:
+            channel_select = channels - 1 # Sets channel to maximum channel if channel selected is out of range
         vprint('Channel: ', channel_select)
         if check_channel_dim(file[:,:,:,channel_select]):
             vprint('Warning: channel is dim. Accuracy of screening may be limited by this.')
@@ -135,7 +134,7 @@ def execute_htp(filepath, config_data):
         if stitch_barcode:
             barcodes.append(barcode)
 
-    return rgb, barcodes, rfc
+    return barcodes, rfc
 
 def remove_extension(filepath):
     if filepath.endswith('.tiff'):
@@ -163,7 +162,7 @@ def process_directory(root_dir, config_data):
         time_file = open(time_filepath, "w")
         time_file.write(file_path + "\n")
         start_time = time.time()
-        rgb_data, barcode_data, rfc_data = execute_htp(file_path, config_data)
+        barcode_data, rfc_data = execute_htp(file_path, config_data)
         if rfc_data == None:
             raise TypeError("Please input valid file type ('.nd2', '.tiff', '.tif')")
         all_data.append([filename])
@@ -193,7 +192,7 @@ def process_directory(root_dir, config_data):
         all_data = []
         all_barcode_data = []
 
-        time_filepath = os.path.join(root_dir, 'time.txt')
+        time_filepath = os.path.join(root_dir, os.basename(root_dir) + 'time.txt')
         time_file = open(time_filepath, "w")
         time_file.write(root_dir + "\n")
         
@@ -229,11 +228,11 @@ def process_directory(root_dir, config_data):
                 time_file.write(file_path + "\n")
                 time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
         
-        output_filepath = os.path.join(root_dir, "summary.csv")
+        output_filepath = os.path.join(root_dir, os.basename(root_dir) + " Summary.csv")
         write_file(output_filepath, all_data)
         
         if stitch_barcode:
-            output_figpath = os.path.join(root_dir, 'summary_barcode.png')
+            output_figpath = os.path.join(root_dir, os.basename(root_dir) + ' Summary Barcode.png')
             generate_stitched_barcode(all_barcode_data, output_figpath)
 
         end_folder_time = time.time()
@@ -241,6 +240,6 @@ def process_directory(root_dir, config_data):
         vprint('Time Elapsed to Process Folder:', elapsed_folder_time)
         time_file.write('Time Elapsed to Process Folder: ' + str(elapsed_folder_time) + "\n")
 
-        settings_loc = os.path.join(root_dir, "settings.yaml")
+        settings_loc = os.path.join(root_dir, os.basename(root_dir) + "settings.yaml")
         with open(settings_loc, 'w+') as ff:
             yaml.dump(config_data, ff)

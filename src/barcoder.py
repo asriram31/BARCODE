@@ -8,7 +8,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib import gridspec
-from writer import write_file, create_barcode, generate_stitched_barcode
+from writer import write_file, create_barcode, generate_stitched_barcode, gen_combined_barcode
 
 def check_channel_dim(image):
     min_intensity = np.min(image)
@@ -93,11 +93,11 @@ def execute_htp(filepath, config_data):
 
         result = [channel, spanning, island_size, void_value, void_growth,  c, c_area1, c_area2, kurt_diff, skew_diff, avg_vel, avg_speed, avg_div, island_movement, direct, directSD]
 
-        barcode = create_barcode(result)
+#         barcode = create_barcode(result)
 
         vprint('Channel Screening Completed')
             
-        return barcode, result
+        return result
     
     file = read_file(filepath, accept_dim_im)
 
@@ -116,10 +116,10 @@ def execute_htp(filepath, config_data):
             if check_channel_dim(file[:,:,:,channel]) and not accept_dim_channel:
                 vprint('Channel too dim, not enough signal, skipping...')
                 continue
-            barcode, results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
+            results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
             rfc.append(results)
-            if stitch_barcode:
-                    barcodes.append(barcode)
+#             if stitch_barcode:
+#                     barcodes.append(barcode)
     
     else:
         while channel_select < 0:
@@ -129,12 +129,12 @@ def execute_htp(filepath, config_data):
         vprint('Channel: ', channel_select)
         if check_channel_dim(file[:,:,:,channel_select]):
             vprint('Warning: channel is dim. Accuracy of screening may be limited by this.')
-        barcode, results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data)
+        results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data)
         rfc.append(results)
-        if stitch_barcode:
-            barcodes.append(barcode)
+#         if stitch_barcode:
+#             barcodes.append(barcode)
 
-    return barcodes, rfc
+    return rfc
 
 def remove_extension(filepath):
     if filepath.endswith('.tiff'):
@@ -147,7 +147,7 @@ def remove_extension(filepath):
 def process_directory(root_dir, config_data):
     verbose = config_data['reader']['verbose']
     writer_data = config_data['writer']
-    save_intermediates, stitch_barcode = writer_data.values()
+    normalize_data, save_intermediates, stitch_barcode = writer_data.values()
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     
@@ -162,7 +162,7 @@ def process_directory(root_dir, config_data):
         time_file = open(time_filepath, "w")
         time_file.write(file_path + "\n")
         start_time = time.time()
-        barcode_data, rfc_data = execute_htp(file_path, config_data)
+        rfc_data = execute_htp(file_path, config_data)
         if rfc_data == None:
             raise TypeError("Please input valid file type ('.nd2', '.tiff', '.tif')")
         all_data.append([filename])
@@ -174,13 +174,14 @@ def process_directory(root_dir, config_data):
         vprint('Time Elapsed:', elapsed_time)
         time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
         
-        all_barcode_data.append(barcode_data)
-        output_filepath = os.path.join(dir_name, filename + 'summary.csv')
-
+#         all_barcode_data.append(barcode_data)
+        output_filepath = os.path.join(dir_name, filename + ' summary.csv')
         write_file(output_filepath, all_data)
+        
         if stitch_barcode:
-            output_figpath = os.path.join(dir_name, filename + 'barcodes.png')
-            generate_stitched_barcode(all_barcode_data, output_figpath)
+            output_figpath = os.path.join(dir_name, filename + ' summary barcode')
+            gen_combined_barcode(rfc_data, output_figpath, normalize_data)
+#             generate_stitched_barcode(all_barcode_data, output_figpath)
 
         settings_loc = os.path.join(dir_name, filename + "settings.yaml")
         with open(settings_loc, 'w+') as ff:
@@ -190,7 +191,7 @@ def process_directory(root_dir, config_data):
             
     else: 
         all_data = []
-        all_barcode_data = []
+#         all_barcode_data = []
 
         time_filepath = os.path.join(root_dir, os.path.basename(root_dir) + 'time.txt')
         time_file = open(time_filepath, "w")
@@ -208,7 +209,7 @@ def process_directory(root_dir, config_data):
                 file_path = os.path.join(dirpath, filename)
                 start_time = time.time()
                 try:
-                    barcode_data, rfc_data = execute_htp(file_path, config_data)
+                    rfc_data = execute_htp(file_path, config_data)
                 except TypeError:
                     continue
                 except Exception as e:
@@ -220,7 +221,7 @@ def process_directory(root_dir, config_data):
                 all_data.append([file_path])
                 all_data.extend(rfc_data)
                 all_data.append([])
-                all_barcode_data.append(barcode_data)
+#                 all_barcode_data.append(barcode_data)
 
                 end_time = time.time()
                 elapsed_time = end_time - start_time
@@ -233,7 +234,7 @@ def process_directory(root_dir, config_data):
         
         if stitch_barcode:
             output_figpath = os.path.join(root_dir, os.path.basename(root_dir) + ' Summary Barcode.png')
-            generate_stitched_barcode(all_barcode_data, output_figpath)
+            gen_combined_barcode(rfc_data, output_figpath, normalize_data)
 
         end_folder_time = time.time()
         elapsed_folder_time = end_folder_time - start_folder_time

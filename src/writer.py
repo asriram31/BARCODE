@@ -1,4 +1,4 @@
-import csv, functools, builtins
+import os, csv, functools, builtins
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -62,7 +62,43 @@ def create_barcode(entry):
 
     return barcode
         
+def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
+    if gen_agg_barcode:
+        combined_barcode_loc = os.path.join(os.path.dirname(csv_loc), 'aggregate_barcode')
+    headers = ['Channel', 'Resilience', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intensity Difference Area 2', 'Average Velocity', 'Average Speed', 'Average Divergence', 'Island Movement Direction', 'Flow Direction']
+    f = open(csv_loc, 'w') # Clears the CSV file if it already exists, and creates it if it does not
+    csv_writer = csv.writer(f)
+    csv_writer.writerow(headers)
+    f.close()
+    
+    def combine_csvs(csv_list):
+        filenames = []
+        csv_data = np.zeros(shape=(16))
+        if not csv_list:
+            return None
+        for csv_file in csv_list:
+            with open(csv_file, 'r') as fread, open(combined_csv_loc, 'a') as fwrite:
+                csv_reader = csv.reader(fread)
+                csv_writer = csv.writer(fwrite)
+                next(csv_reader, None)
+                for row in csv_reader:
+                    if len(row) == 1:
+                        filenames.append(str(row))
+                    elif len(row) == 0:
+                        continue
+                    else:
+                        row = np.float_(row)
+                        arr_row = np.array(row)
+                        csv_data = np.vstack((csv_data, arr_row))
+                    csv_writer.writerow(row)
+        return csv_data
 
+    csv_data = combine_csvs(files)
+    
+    if gen_barcode:
+        csv_data_2 = csv_data[1:]
+        gen_combined_barcode(csv_data_2, combined_barcode_loc, normalize_data)
+    
 
 def generate_stitched_barcode(barcodes, figpath=None):
     # Stack the barcodes vertically

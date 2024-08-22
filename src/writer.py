@@ -19,49 +19,7 @@ def write_file(output_filepath, data):
                 else:
                     # Write an empty row
                     csvwriter.writerow([])
-'''
-def create_barcode(entry):
-    # Define color mappings
-    colormap = plt.get_cmap('plasma')  # Colormap for floats
 
-    # channel, r, c, spanning, void_value, island_size, island_movement, void_growth, direct, avg_vel, avg_speed, avg_div, c_area1, c_area2 = entry
-    channel = entry[0]
-    float_indices = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    float_values = [entry[val] for val in float_indices]
-
-    # Define normalization limits of floating point values
-    connected_lim = [0, 1] # Limit on the percentage of frames that are connected
-    bin_size_lim = [0, 1]  # Size limit for void and island size
-    void_growth_lim = [0, 5] # Limits for the expected growth of the void
-    c_lim = [0, 10] # Limit on the percentage of mean-mode difference thresholding
-    i_area_lim = [0, 1] # Limit for the first two areas of the delta-I distribution
-    kurt_lim = [0, 10]
-    skew_lim = [0, 10]
-    avg_vel_lim = [0, 10] # Limit for the average velocity (pixels/sec)
-    avg_speed_lim = [0, 10] # Limit for the average speed (pixels/sec)
-    avg_div = [-1, 1] # Limit for divergence metric (-1 is pure contraction, 1 is pure expansion)
-    direct_lim = [-np.pi, np.pi] # Limits on the direction of the island and flow (radians)
-    
-    limits = [connected_lim, bin_size_lim, bin_size_lim, void_growth_lim, c_lim, i_area_lim, i_area_lim, kurt_lim, skew_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim, direct_lim]
-    
-    def normalize(x, min_float, max_float):
-        if x == None:
-            return None
-        return (x - min_float) / (max_float - min_float)
-    
-    # Create the color barcode
-    barcode = [None] * 15
-
-    for f_index, entry_value_float, float_lim in zip(float_indices, float_values, limits):
-        cval = normalize(entry_value_float, float_lim[0], float_lim[1])
-        color = [0.5, 0.5, 0.5] if cval == None else colormap(cval)[:3]
-        barcode[f_index - 1] = color
-    
-    # Convert to numpy array and reshape for plotting
-    barcode = np.array(barcode)
-
-    return barcode
-'''       
 def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
     if gen_agg_barcode:
         combined_barcode_loc = os.path.join(os.path.dirname(csv_loc), 'aggregate_barcode')
@@ -159,7 +117,6 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
     if normalize_data:
         for i in range(14):
             limits[i] = [np.min(all_entries[i + 1]), np.max(all_entries[i + 1])]
-
     binary_colors = {0: [0, 0, 0], 1: [1, 1, 1], None: [0.5, 0.5, 0.5]}  # Black for 0, white for 1
     colormap = plt.get_cmap('plasma')  # Colormap for floats
 

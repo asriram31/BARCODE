@@ -8,7 +8,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib import gridspec
-from writer import write_file, create_barcode, generate_stitched_barcode, gen_combined_barcode
+from writer import write_file, gen_combined_barcode
 
 def check_channel_dim(image):
     min_intensity = np.min(image)
@@ -153,7 +153,6 @@ def process_directory(root_dir, config_data):
     
     if os.path.isfile(root_dir):
         all_data = []
-        all_barcode_data = []
         file_path = root_dir
         filename = os.path.basename(file_path)
         dir_name = os.path.dirname(file_path)
@@ -180,10 +179,10 @@ def process_directory(root_dir, config_data):
         
         if stitch_barcode:
             output_figpath = os.path.join(dir_name, filename + ' summary barcode')
-            gen_combined_barcode(rfc_data, output_figpath, normalize_data)
+            gen_combined_barcode(np.array(rfc_data), output_figpath, normalize_data)
 #             generate_stitched_barcode(all_barcode_data, output_figpath)
 
-        settings_loc = os.path.join(dir_name, filename + "settings.yaml")
+        settings_loc = os.path.join(dir_name, filename + " settings.yaml")
         with open(settings_loc, 'w+') as ff:
             yaml.dump(config_data, ff)
 
@@ -192,8 +191,8 @@ def process_directory(root_dir, config_data):
     else: 
         all_data = []
 #         all_barcode_data = []
-
-        time_filepath = os.path.join(root_dir, os.path.basename(root_dir) + 'time.txt')
+        all_rfc_data = []
+        time_filepath = os.path.join(root_dir, os.path.basename(root_dir) + ' time.txt')
         time_file = open(time_filepath, "w")
         time_file.write(root_dir + "\n")
         
@@ -221,7 +220,8 @@ def process_directory(root_dir, config_data):
                 all_data.append([file_path])
                 all_data.extend(rfc_data)
                 all_data.append([])
-#                 all_barcode_data.append(barcode_data)
+                for result in rfc_data:
+                    all_rfc_data.append(np.array(result))
 
                 end_time = time.time()
                 elapsed_time = end_time - start_time
@@ -232,9 +232,11 @@ def process_directory(root_dir, config_data):
         output_filepath = os.path.join(root_dir, os.path.basename(root_dir) + " Summary.csv")
         write_file(output_filepath, all_data)
         
+        print(all_rfc_data)
+        
         if stitch_barcode:
-            output_figpath = os.path.join(root_dir, os.path.basename(root_dir) + ' Summary Barcode.png')
-            gen_combined_barcode(rfc_data, output_figpath, normalize_data)
+            output_figpath = os.path.join(root_dir, os.path.basename(root_dir) + '_Summary Barcode')
+            gen_combined_barcode(np.array(all_rfc_data), output_figpath, normalize_data)
 
         end_folder_time = time.time()
         elapsed_folder_time = end_folder_time - start_folder_time

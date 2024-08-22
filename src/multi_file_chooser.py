@@ -2,6 +2,7 @@ from gooey import Gooey, GooeyParser
 import numpy as np
 import csv
 import os
+import matplotlib.pyplot as plt
 
 @Gooey
 def main():
@@ -34,7 +35,7 @@ def main():
 
     def combine_csvs(csv_list):
         filenames = []
-        csv_data = np.zeros(shape=(14))
+        csv_data = np.zeros(shape=(16))
         if not csv_list:
             return None
         for csv_file in csv_list:
@@ -48,6 +49,7 @@ def main():
                     elif len(row) == 0:
                         continue
                     else:
+                        row = np.float_(row)
                         arr_row = np.array(row)
                         csv_data = np.vstack((csv_data, arr_row))
                     csv_writer.writerow(row)
@@ -98,8 +100,8 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
     limits = [connected_lim, bin_size_lim, bin_size_lim, void_growth_lim, c_lim, i_area_lim, i_area_lim, kurt_lim, skew_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim, direct_lim]
 
     if normalize_data:
-        for i, lim in enumerate(limits):
-            limits[i] = [np.min(all_entries[i]), np.max(all_entries[i])]
+        for i in range(14):
+            limits[i] = [np.min(all_entries[i + 1]), np.max(all_entries[i + 1])]
 
     binary_colors = {0: [0, 0, 0], 1: [1, 1, 1], None: [0.5, 0.5, 0.5]}  # Black for 0, white for 1
     colormap = plt.get_cmap('plasma')  # Colormap for floats
@@ -109,11 +111,9 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
             return None
         return (x - min_float) / (max_float - min_float)
 
-    float_values = [all_entries[val] for val in float_indices]
-
     for channel in unique_channels:
-        channel_figpath = figpath + '_channel_' + channel + '.png'
-        filtered_channel_data = data[data[:0] == channel]
+        channel_figpath = figpath + '_channel_' + str(int(channel)) + '.png'
+        filtered_channel_data = data[data[:,0] == channel]
         channel_agg_barcode = [None] * len(filtered_channel_data)
         for row in range(len(filtered_channel_data)):
             barcode = [None] * 15
@@ -125,18 +125,18 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
                 barcode[idx] = color
             channel_agg_barcode[row] = barcode
             
-            # Create a figure and axis
-            fig, ax = plt.subplots(figsize=(12, 9), dpi=300)
+        # Create a figure and axis
+        fig, ax = plt.subplots(figsize=(12, 9), dpi=300)
+    
+        # Repeat each barcode to make it more visible
+        barcode_image = np.repeat(channel_agg_barcode, 5, axis=0)  # Adjust the repetition factor as needed
+    
+        # Plot the stitched barcodes
+        ax.imshow(channel_agg_barcode, aspect='auto')
+        ax.axis('off')  # Turn off the axis
         
-            # Repeat each barcode to make it more visible
-            barcode_image = np.repeat(agg_barcodes, 5, axis=0)  # Adjust the repetition factor as needed
-        
-            # Plot the stitched barcodes
-            ax.imshow(barcode_image, aspect='auto')
-            ax.axis('off')  # Turn off the axis
-            
-            # Save or show the figure
-            plt.savefig(channel_figpath, bbox_inches='tight', pad_inches=0)
+        # Save or show the figure
+        plt.savefig(channel_figpath, bbox_inches='tight', pad_inches=0)
     
 
 if __name__ == "__main__":

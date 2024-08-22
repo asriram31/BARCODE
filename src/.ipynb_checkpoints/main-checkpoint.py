@@ -106,6 +106,8 @@ def main():
         'max': 0.2,
         'increment':0.01
     })
+
+    barcode_generator = parser.add_argument_group('Barcode Generator + CSV Aggregator')
     
     settings = parser.parse_args()
 

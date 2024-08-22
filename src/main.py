@@ -32,6 +32,7 @@ def main():
         'min': -3, 
         'max': 4
     })
+    fdc.add_argument('--')
 
     # Reader Execution Settings
     gc.add_argument('--check_resilience', metavar='Binarization', help='Evaluate sample(s) using binarization module', widget='CheckBox', action='store_true')
@@ -106,6 +107,11 @@ def main():
         'max': 0.2,
         'increment':0.01
     })
+
+    barcode_generator = parser.add_argument_group('Barcode Generator + CSV Aggregator')
+
+    
+    
     
     settings = parser.parse_args()
 

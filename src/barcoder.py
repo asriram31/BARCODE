@@ -192,7 +192,7 @@ def process_directory(root_dir, config_data):
         all_data = []
         all_barcode_data = []
 
-        time_filepath = os.path.join(root_dir, os.basename(root_dir) + 'time.txt')
+        time_filepath = os.path.join(root_dir, os.path.basename(root_dir) + 'time.txt')
         time_file = open(time_filepath, "w")
         time_file.write(root_dir + "\n")
         
@@ -208,7 +208,7 @@ def process_directory(root_dir, config_data):
                 file_path = os.path.join(dirpath, filename)
                 start_time = time.time()
                 try:
-                    rgb_data, barcode_data, rfc_data = execute_htp(file_path, config_data)
+                    barcode_data, rfc_data = execute_htp(file_path, config_data)
                 except TypeError:
                     continue
                 except Exception as e:
@@ -228,11 +228,11 @@ def process_directory(root_dir, config_data):
                 time_file.write(file_path + "\n")
                 time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
         
-        output_filepath = os.path.join(root_dir, os.basename(root_dir) + " Summary.csv")
+        output_filepath = os.path.join(root_dir, os.path.basename(root_dir) + " Summary.csv")
         write_file(output_filepath, all_data)
         
         if stitch_barcode:
-            output_figpath = os.path.join(root_dir, os.basename(root_dir) + ' Summary Barcode.png')
+            output_figpath = os.path.join(root_dir, os.path.basename(root_dir) + ' Summary Barcode.png')
             generate_stitched_barcode(all_barcode_data, output_figpath)
 
         end_folder_time = time.time()
@@ -240,6 +240,6 @@ def process_directory(root_dir, config_data):
         vprint('Time Elapsed to Process Folder:', elapsed_folder_time)
         time_file.write('Time Elapsed to Process Folder: ' + str(elapsed_folder_time) + "\n")
 
-        settings_loc = os.path.join(root_dir, os.basename(root_dir) + "settings.yaml")
+        settings_loc = os.path.join(root_dir, os.path.basename(root_dir) + "settings.yaml")
         with open(settings_loc, 'w+') as ff:
             yaml.dump(config_data, ff)

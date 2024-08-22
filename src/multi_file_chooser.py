@@ -1,6 +1,7 @@
 from gooey import Gooey, GooeyParser
 import numpy as np
 import csv
+import os
 
 @Gooey
 def main():
@@ -23,10 +24,10 @@ def main():
     normalize_data = settings.normalize_agg_barcode
     
     if gen_barcode:
-        combined_barcode_loc = os.path.join(os.path.dirname(combined_csv_loc), 'aggregate_barcode.png')
+        combined_barcode_loc = os.path.join(os.path.dirname(combined_csv_loc), 'aggregate_barcode')
 
     headers = ['Channel', 'Resilience', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intensity Difference Area 2', 'Average Velocity', 'Average Speed', 'Average Divergence', 'Island Movement Direction', 'Flow Direction']
-    f = open(combined_csvLoc, 'w') # Clears the CSV file if it already exists, and creates it if it does not
+    f = open(combined_csv_loc, 'w') # Clears the CSV file if it already exists, and creates it if it does not
     csv_writer = csv.writer(f)
     csv_writer.writerow(headers)
     f.close()
@@ -44,20 +45,26 @@ def main():
                 for row in csv_reader:
                     if len(row) == 1:
                         filenames.append(str(row))
+                    elif len(row) == 0:
+                        continue
                     else:
                         arr_row = np.array(row)
-                        csv_data = np.vstack(csv_data, arr_row)
+                        csv_data = np.vstack((csv_data, arr_row))
                     csv_writer.writerow(row)
+        return csv_data
+
+    csv_data = combine_csvs(files)
+
+    
 
     if gen_barcode:
-        csv_data_no_channels = csv_data[:,1:]
-        gen_combined_barcode(csv_data_no_channels, normalize_data)
+        csv_data_2 = csv_data[1:]
+        gen_combined_barcode(csv_data_2, combined_barcode_loc, normalize_data)
 
-    # print(settings.file_path)
-
-def gen_combined_barcode(data, normalize_data = True):
+def gen_combined_barcode(data, figpath, normalize_data = True):
     # Order: [channel, r, spanning, island_size, void_value, void_growth,  c, c_area1, c_area2, avg_vel, avg_speed, avg_div, island_movement, direct]
-    resilience = data[:,0]
+    channels = data[:,0]
+    unique_channels = np.unique(channels)
     connectivity = data[:,1]
     island_size = data[:,2]
     void_value = data[:,3]
@@ -65,22 +72,30 @@ def gen_combined_barcode(data, normalize_data = True):
     coarsening = data[:,5]
     i_diff_a1 = data[:,6]
     i_diff_a2 = data[:,7]
-    avg_vel = data[:,8]
-    avg_speed = data[:,9]
-    avg_div = data[:,10]
-    island_dir = data[:,11]
-    flow_dir = data[:,12]
-    all_entries = [resilience, connectivity, island_size, void_value, void_growth, coarsening, i_diff_a1, i_diff_a2, avg_vel, avg_speed, avg_div, island_dir, flow_dir]
+    kurtosis = data[:,8]
+    skewness = data[:,9]
+    avg_vel = data[:,10]
+    avg_speed = data[:,11]
+    avg_div = data[:,12]
+    island_dir = data[:,13]
+    flow_dir = data[:,14]
+    flow_dir_sd = data[:,15]
+    all_entries = [connectivity, island_size, void_value, void_growth, coarsening, i_diff_a1, i_diff_a2, kurtosis, skewness, avg_vel, avg_speed, avg_div, island_dir, flow_dir, flow_dir_sd]
 
     # Define normalization limits of floating point values
+    connected_lim = [0, 1] # Limit on the percentage of frames that are connected
     bin_size_lim = [0, 1]  # Size limit for void and island size
-    direct_lim = [-np.pi, np.pi] # Limits on the direction of the island and flow (radians)
     void_growth_lim = [0, 5] # Limits for the expected growth of the void
+    c_lim = [0, 10] # Limit on the percentage of mean-mode difference thresholding
+    i_area_lim = [0, 1] # Limit for the first two areas of the delta-I distribution
+    kurt_lim = [-10, 10] # Limit on the kurtosis
+    skew_lim = [-10, 10] # Limit on the skewness
     avg_vel_lim = [0, 10] # Limit for the average velocity (pixels/sec)
     avg_speed_lim = [0, 10] # Limit for the average speed (pixels/sec)
     avg_div = [-1, 1] # Limit for divergence metric (-1 is pure contraction, 1 is pure expansion)
-    i_area_lim = [0, 0.2] # Limit for the first two areas of the delta-I distribution
-    limits = [bin_size_lim, bin_size_lim, void_growth_lim, i_area_lim, i_area_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim]
+    direct_lim = [-np.pi, np.pi] # Limits on the direction of the island and flow (radians)
+    
+    limits = [connected_lim, bin_size_lim, bin_size_lim, void_growth_lim, c_lim, i_area_lim, i_area_lim, kurt_lim, skew_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim, direct_lim]
 
     if normalize_data:
         for i, lim in enumerate(limits):
@@ -94,30 +109,34 @@ def gen_combined_barcode(data, normalize_data = True):
             return None
         return (x - min_float) / (max_float - min_float)
 
-    binary_indices = [0, 1, 5]
-    binary_values = [all_entries[idx] for val in binary_indices]
-    float_indices = [2, 3, 4, 6, 7, 8, 9, 10, 11, 12]
     float_values = [all_entries[val] for val in float_indices]
 
-    agg_barcode = np.zeros(13)
-    for row in range(len(data)):
-        barcode = [None] * 13
-        for idx in range(len(all_entries)):
-            if idx in binary_indices:
-                value = data[row, ]
-            elif idx in float_indices:
-                
+    for channel in unique_channels:
+        channel_figpath = figpath + '_channel_' + channel + '.png'
+        filtered_channel_data = data[data[:0] == channel]
+        channel_agg_barcode = [None] * len(filtered_channel_data)
+        for row in range(len(filtered_channel_data)):
+            barcode = [None] * 15
+            for idx in range(len(all_entries)):
+                value = filtered_channel_data[row, 1 + idx]
+                lims = limits[idx]
+                cval = normalize(value, lims[0], lims[1])
+                color = [0.5, 0.5, 0.5] if cval == None else colormap(cval)[:3]
+                barcode[idx] = color
+            channel_agg_barcode[row] = barcode
+            
+            # Create a figure and axis
+            fig, ax = plt.subplots(figsize=(12, 9), dpi=300)
         
-    
-    # Create the color barcode
-    
-    for index, value in zip(binary_indices, binary_values):
-        color = binary_colors[value]
-        barcode[index - 1] = color
-    for f_index, entry_value_float, float_lim in zip(float_indices, float_values, limits):
-        cval = normalize(entry_value_float, float_lim[0], float_lim[1])
-        color = [0.5, 0.5, 0.5] if cval == None else colormap(cval)[:3]
-        barcode[f_index - 1] = color
+            # Repeat each barcode to make it more visible
+            barcode_image = np.repeat(agg_barcodes, 5, axis=0)  # Adjust the repetition factor as needed
+        
+            # Plot the stitched barcodes
+            ax.imshow(barcode_image, aspect='auto')
+            ax.axis('off')  # Turn off the axis
+            
+            # Save or show the figure
+            plt.savefig(channel_figpath, bbox_inches='tight', pad_inches=0)
     
 
 if __name__ == "__main__":

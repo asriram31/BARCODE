@@ -175,7 +175,7 @@ def set_config_data(args = None):
         }
         
         writer_data = {
-            'normalize_data':args.normalize_data
+            'normalize_data':args.normalize_data,
             'return_intermediates':args.return_intermediates,
             'stitch_barcode':args.stitch_barcode
         }

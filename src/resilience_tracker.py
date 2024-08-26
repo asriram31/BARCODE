@@ -142,8 +142,10 @@ def check_resilience(file, name, channel, R_offset, frame_step, frame_start_perc
     percent_gain_initial_list = np.mean(largest_void_lst[0:start_initial_index])
     percent_gain_list = np.array(largest_void_lst)/percent_gain_initial_list
     
-    ax.plot(np.arange(start_index * frame_step, stop_index * frame_step, frame_step), percent_gain_list[start_index:stop_index])
-    ax.set_xticks(np.arange(start_index * frame_step, stop_index * frame_step, frame_step))
+    plot_range = np.arange(start_index * frame_step, stop_index * frame_step, frame_step)
+    plot_range[-1] = len(image) - 1 if stop_index * frame_step >= len(image) else stop_index * frame_step
+    ax.plot(plot_range, percent_gain_list[start_index:stop_index])
+    ax.set_xticks(plot_range)
     if stop_index * frame_step >= len(image) != 0:
         ax.set_xlim(left=None, right=len(image) - 1)
     ax.set_xlabel("Frames")

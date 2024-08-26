@@ -124,11 +124,8 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     f_count, bins = np.histogram(f_frames_data.flatten(), bins=set_bins, density=True)
     center_bins = (bins[1] - bins[0])/2
     plt_bins = bins[0:-1] + center_bins
-    ax.plot(plt_bins, i_count, '^-', ms=4, c='darkred', alpha=0.2, label= "frame " + str(first_frame+1)+" dist")
-    ax.plot(plt_bins, f_count, 'v-', ms=4, c='darkorange',   alpha=0.2, label= "frame " + str(last_frame+1)+" dist")
     
     count_diff = f_count - i_count
-    ax.plot(plt_bins, count_diff, 'D-', ms=2, c='red', label = "difference btwn")
     
     ax.plot(plt_bins, i_count, '^-', ms=4, c='darkred', alpha=0.2, label= "frame " + str(first_frame+1)+" dist")
     ax.plot(plt_bins, f_count, 'v-', ms=4, c='darkorange',   alpha=0.2, label= "frame " + str(last_frame+1)+" dist")

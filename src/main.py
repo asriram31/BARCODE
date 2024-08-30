@@ -91,6 +91,17 @@ def main():
         'min':1,
         'increment':1,
     })
+    
+    flow_settings.add_argument('--nm_pixel_ratio', metavar = 'Nanometer to Pixel Ratio', help = "Set the ratio of nanometers to pixels (leave at default if this is variable within your dataset", widget= = 'IntegerField', default = 1, gooey_options = {
+        'min':1,
+        'increment':1,
+    })
+    
+    flow_settings.add_argument('--frame_interval', metavar = 'Frame Interval', help = "Set the interval (in seconds) between frames (leave at default if this is variable within your dataset", widget= = 'IntegerField', default = 1, gooey_options = {
+        'min':1,
+        'increment':1,
+    })
+    
 
     coarse_settings = parser.add_argument_group('Intensity Distribution Settings')
 
@@ -192,7 +203,9 @@ def set_config_data(args = None):
         if reader_data['flow']:
             flow_data = {
                 'downsample':int(args.downsample),
-                'frame_step':int(args.flow_f_step)
+                'frame_step':int(args.flow_f_step),
+                'frame_interval':int(args.frame_interval),
+                'nm_pixel_ratio':int(args.nm_pixel_ratio)
             }
 
         if reader_data['coarsening']:

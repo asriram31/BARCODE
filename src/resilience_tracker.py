@@ -1,6 +1,7 @@
 from reader import read_file
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import imageio.v3 as iio
 from nd2reader import ND2Reader
 import math, pims, yaml, gc, csv, os, glob, pickle, functools, builtins
@@ -95,6 +96,21 @@ def track_void(image, name, threshold, step, save_intermediates):
         island_area_lst.append(find_largest_void(new_frame, find_void = False))
         island_position_lst.append(largest_island_position(new_frame))
         connected_lst.append(check_span(new_frame))
+    i = len(image) - 1    
+    if i % step != 0:
+        new_image = image[i][xindices][:,yindices]
+        new_frame = binarize(new_image, threshold)
+        if save_intermediates:
+            csvwriter.writerow([str(i)])
+            csvwriter.writerows(new_frame)
+            csvwriter.writerow([])
+        
+        void_lst.append(find_largest_void(new_frame))
+        island_area_lst.append(find_largest_void(new_frame, find_void = False))
+        island_position_lst.append(largest_island_position(new_frame))
+        connected_lst.append(check_span(new_frame))
+
+        
 
     if save_intermediates:
         f.close()
@@ -115,15 +131,23 @@ def check_resilience(file, name, channel, R_offset, frame_step, frame_start_perc
     if (image == 0).all():
         return [None] * 6
     
+    while len(image) <= frame_step:
+        frame_step = frame_step / 5
+    
     largest_void_lst, island_area_lst, island_position_lst, connected_lst = track_void(image, name, R_offset, frame_step, save_intermediates)
-    start_index = int(np.floor(len(largest_void_lst) * frame_start_percent))
+    start_index = int(np.floor(len(image) * frame_start_percent / frame_step))
     stop_index = int(np.ceil(len(largest_void_lst) * frame_stop_percent))
-    start_initial_index = int(np.ceil(len(largest_void_lst)*frame_initial_percent))
+    start_initial_index = int(np.ceil(len(image)*frame_initial_percent / frame_step))
 
     percent_gain_initial_list = np.mean(largest_void_lst[0:start_initial_index])
     percent_gain_list = np.array(largest_void_lst)/percent_gain_initial_list
     
-    ax.plot(np.arange(start_index, stop_index), percent_gain_list[start_index:stop_index])
+    plot_range = np.arange(start_index * frame_step, stop_index * frame_step, frame_step)
+    plot_range[-1] = len(image) - 1 if stop_index * frame_step >= len(image) else stop_index * frame_step
+    ax.plot(plot_range, percent_gain_list[start_index:stop_index])
+    ax.set_xticks(plot_range)
+    if stop_index * frame_step >= len(image) != 0:
+        ax.set_xlim(left=None, right=len(image) - 1)
     ax.set_xlabel("Frames")
     ax.set_ylabel("Proportion of orginal void size")
     #Calculate

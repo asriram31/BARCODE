@@ -48,8 +48,8 @@ def execute_htp(filepath, config_data):
             island_movement = None
             void_growth = None
         if flow == True:
-            downsample, frame_step = flow_data.values()
-            direct, directSD, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, return_graphs, save_intermediates, verbose)
+            downsample, frame_step, frame_interval, nm_pix_ratio = flow_data.values()
+            direct, directSD, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose)
         else:
             direct = None
             directSD = None
@@ -158,7 +158,7 @@ def process_directory(root_dir, config_data):
         dir_name = os.path.dirname(file_path)
         
         time_filepath = os.path.join(dir_name, filename + 'time.txt')
-        time_file = open(time_filepath, "w")
+        time_file = open(time_filepath, "w", encoding="utf-8")
         time_file.write(file_path + "\n")
         start_time = time.time()
         rfc_data = execute_htp(file_path, config_data)
@@ -183,7 +183,7 @@ def process_directory(root_dir, config_data):
 #             generate_stitched_barcode(all_barcode_data, output_figpath)
 
         settings_loc = os.path.join(dir_name, filename + " settings.yaml")
-        with open(settings_loc, 'w+') as ff:
+        with open(settings_loc, 'w+', encoding="utf-8") as ff:
             yaml.dump(config_data, ff)
 
         time_file.close()
@@ -193,7 +193,7 @@ def process_directory(root_dir, config_data):
 #         all_barcode_data = []
         all_rfc_data = []
         time_filepath = os.path.join(root_dir, os.path.basename(root_dir) + ' time.txt')
-        time_file = open(time_filepath, "w")
+        time_file = open(time_filepath, "w", encoding="utf-8")
         time_file.write(root_dir + "\n")
         
         start_folder_time = time.time()

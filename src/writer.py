@@ -29,13 +29,13 @@ def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
     csv_writer.writerow(headers)
     f.close()
     
-    def combine_csvs(csv_list):
+    def combine_csvs(csv_list, csv_loc):
         filenames = []
         csv_data = np.zeros(shape=(16))
         if not csv_list:
             return None
         for csv_file in csv_list:
-            with open(csv_file, 'r') as fread, open(combined_csv_loc, 'a') as fwrite:
+            with open(csv_file, 'r') as fread, open(csv_loc, 'a') as fwrite:
                 csv_reader = csv.reader(fread)
                 csv_writer = csv.writer(fwrite)
                 next(csv_reader, None)
@@ -51,9 +51,9 @@ def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
                     csv_writer.writerow(row)
         return csv_data
 
-    csv_data = combine_csvs(files)
+    csv_data = combine_csvs(filelist, csv_loc)
     
-    if gen_barcode:
+    if gen_agg_barcode:
         csv_data_2 = csv_data[1:]
         gen_combined_barcode(csv_data_2, combined_barcode_loc, normalize_data)
     

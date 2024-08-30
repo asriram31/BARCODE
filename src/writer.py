@@ -56,29 +56,7 @@ def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
     if gen_barcode:
         csv_data_2 = csv_data[1:]
         gen_combined_barcode(csv_data_2, combined_barcode_loc, normalize_data)
-    
 
-def generate_stitched_barcode(barcodes, figpath=None):
-    # Stack the barcodes vertically
-    stitched_barcodes = np.vstack(barcodes)
-    
-    # Normalize the RGB values across all barcodes using the plasma colormap
-    num_barcodes = len(barcodes)
-    plasma_colormap = plt.get_cmap('plasma')
-    
-    # Create a figure and axis
-    fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
-    
-    # Repeat each barcode to make it more visible
-    barcode_image = np.repeat(stitched_barcodes, 10, axis=0)  # Adjust the repetition factor as needed
-    
-    # Plot the stitched barcodes
-    ax.imshow(barcode_image, aspect='auto')
-    ax.axis('off')  # Turn off the axis
-    
-    # Save or show the figure
-    plt.savefig(figpath, bbox_inches='tight', pad_inches=0)
-    
 def gen_combined_barcode(data, figpath, normalize_data = True):
     channels = data[:,0]
     unique_channels = np.unique(channels)

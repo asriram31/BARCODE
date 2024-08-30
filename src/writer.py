@@ -5,7 +5,7 @@ import numpy as np
 def write_file(output_filepath, data):
     if data:
         headers = ['Channel', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intensity Difference Area 2', 'Kurtosis', 'Skewness', 'Mean Velocity', 'Mean Speed', 'Mean Divergence', 'Island Movement Direction', 'Mean Flow Direction', 'Flow Direction (Standard Deviation)']
-        with open(output_filepath, 'w', newline='') as csvfile:
+        with open(output_filepath, 'w', newline='', encoding="utf-8") as csvfile:
             csvwriter = csv.writer(csvfile)
             csvwriter.writerow(headers) # Write headers before the first filename
             headers = [] # Ensures headers are only written once per file
@@ -24,7 +24,7 @@ def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
     if gen_agg_barcode:
         combined_barcode_loc = os.path.join(os.path.dirname(csv_loc), 'aggregate_barcode')
     headers = ['Channel', 'Resilience', 'Connectivity', 'Island Size', 'Largest Void', 'Void Size Change', 'Coarsening', 'Intensity Difference Area 1', 'Intensity Difference Area 2', 'Average Velocity', 'Average Speed', 'Average Divergence', 'Island Movement Direction', 'Flow Direction']
-    f = open(csv_loc, 'w') # Clears the CSV file if it already exists, and creates it if it does not
+    f = open(csv_loc, 'w', encoding="utf-8") # Clears the CSV file if it already exists, and creates it if it does not
     csv_writer = csv.writer(f)
     csv_writer.writerow(headers)
     f.close()
@@ -35,7 +35,7 @@ def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
         if not csv_list:
             return None
         for csv_file in csv_list:
-            with open(csv_file, 'r') as fread, open(combined_csv_loc, 'a') as fwrite:
+            with open(csv_file, 'r') as fread, open(combined_csv_loc, 'a', encoding="utf-8") as fwrite:
                 csv_reader = csv.reader(fread)
                 csv_writer = csv.writer(fwrite)
                 next(csv_reader, None)

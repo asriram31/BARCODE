@@ -16,7 +16,7 @@ def divergence_npgrad(flow):
     dFy_dy = np.gradient(Fy, axis=1)
     return dFx_dx + dFy_dy
 
-def check_flow(file, name, channel, frame_stride, downsample, return_graphs, save_intermediates, verbose):
+def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose):
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Flow Testing')
@@ -115,5 +115,9 @@ def check_flow(file, name, channel, frame_stride, downsample, return_graphs, sav
     vprint("vx mean: ", vxMeans.mean(), "\n","vy mean: ", vyMeans.mean(), "\n", "angle:", direct, "\n", "angular stdev:", directSD, "\n", "divergence mean:", mean_div)
     mean_vel = (vxMeans.mean() ** 2 + vyMeans.mean() ** 2) ** (1/2)
     mean_speed = speeds.mean()
+    
+    # Corrections to convert from pixels/flow field -> nm / sec
+    mean_vel = mean_vel * (1 / frame_stride) * nm_pix_ratio * (1 / frame_interval)
+    mean_speed = mean_speed * (1 / frame_stride) * nm_pix_ratio * (1 / frame_interval)
     
     return direct, directSD, mean_vel, mean_speed, mean_div

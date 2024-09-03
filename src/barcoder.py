@@ -135,7 +135,7 @@ def execute_htp(filepath, config_data):
             results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data)
             results.insert(1, 1) # Indicate dim channel flag present
         else:
-            results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
+            results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data)
             results.insert(1, 0) # Indicate no flags present
         rfc.append(results)
 

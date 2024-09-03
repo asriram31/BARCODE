@@ -15,6 +15,12 @@ def calculate_mean_mode(frame):
     mode_intensity = mode_intensity[0] if mode_intensity.size > 0 else np.nan
     return mean_intensity, mode_intensity
 
+def top_ten_average(lst):
+    lst.sort(reverse=True)
+    length = len(lst)
+    top_ten_percent = int(np.ceil(length * 0.1))
+    return np.mean(lst[0:top_ten_percent])
+
 def analyze_frames(name, video, frames_percent, save_intermediates):
     num_frames = video.shape[0]
     num_frames_analysis = int(np.ceil(frames_percent * num_frames))
@@ -109,13 +115,29 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     else:
         f_frames_data = np.array([im[last_frame - 1 - i] for i in range(num_frames_analysis)])
 
-    i_kurt = kurtosis(i_frames_data.flatten())
-    f_kurt = kurtosis(f_frames_data.flatten())
-    i_skew = skew(i_frames_data.flatten())
-    f_skew = skew(f_frames_data.flatten())
+    def calc_frame_metric(metric, data):
+        mets = []
+        for i in range(len(data)):
+            met = metric(data[i].flatten())
+            mets.append(met)
+        return mets
 
-    kurt_diff = f_kurt - i_kurt
-    skew_diff = f_skew - i_skew
+    i_kurt = calc_frame_metric(kurtosis, i_frames_data)
+    f_kurt = calc_frame_metric(kurtosis, f_frames_data)
+    tot_kurt = i_kurt + f_kurt
+    i_skew = calc_frame_metric(skew, i_frames_data)
+    f_skew = calc_frame_metric(skew, f_frames_data)
+    tot_skew = i_skew + f_skew
+    i_mean_mode = calc_frame_metric(calculate_mean_mode, i_frames_data)
+    f_mean_mode = calc_frame_metric(calculate_mean_mode, f_frames_data)
+    tot_mean_mode = i_mean_mode + f_mean_mode
+
+    max_kurt = top_ten_average(tot_kurt)
+    max_skew = top_ten_average(tot_skew)
+    max_mean_mode = top_ten_average(tot_mean_mode)
+
+    kurt_diff = np.mean(np.array(f_kurt)) - np.mean(np.array(i_kurt))
+    skew_diff = np.mean(np.array(f_skew)) - np.mean(np.array(i_skew))
 
     fig, ax = plt.subplots(figsize=(5,5))
     set_bins = np.arange(0, max_px_intensity, bins_width)
@@ -132,8 +154,9 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     count_diff = f_count - i_count
     ax.plot(plt_bins, count_diff, 'D-', ms=2, c='red', label = "difference btwn")
     
+    ''' NOTE: The following section pertains to code from the intensity difference areas; this is no longer in usage.
     
-    # ### get range for local extrema of interest ###
+    ### get range for local extrema of interest ###
 
     cumulative_count_diff = np.cumsum(count_diff)
     filtered_ccd = scipy.ndimage.gaussian_filter1d(cumulative_count_diff, 8)
@@ -143,6 +166,7 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     filt_max = np.array([0]) if len(filtered_ccd[peaks_max]) == 0 else filtered_ccd[peaks_max][0]
     filt_min = np.array([0]) if len(filtered_ccd[peaks_min]) == 0 else filtered_ccd[peaks_min][0]
     areas = np.append(np.abs(filt_max), np.abs(filt_min))
+    '''
 
     perc_increase = analyze_frames(name, im, frames_percent, save_intermediates)
 
@@ -152,4 +176,4 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     ax.set_xlim(0,max_px_intensity + 5)
     ax.legend()
     
-    return perc_increase, fig, areas[0], areas[1], kurt_diff, skew_diff
+    return perc_increase, fig, max_kurt, max_skew, max_mean_mode, kurt_diff, skew_diff

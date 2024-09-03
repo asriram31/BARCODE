@@ -10,6 +10,7 @@ import matplotlib.colors as mcolors
 from matplotlib import gridspec
 from barcoder import process_directory, execute_htp
 from gooey import Gooey, GooeyParser
+from writer import generate_aggregate_csv
 
 @Gooey(program_name="DMREF BARCODE Program", tabbed_groups=True, navigation='Tabbed')
 def main():
@@ -32,6 +33,7 @@ def main():
         'min': -3, 
         'max': 4
     })
+    fdc.add_argument('--barcode_generation', metavar='Combine CSV files/Generate Barcodes', help='Click to combine summary CSV files and generate barcodes', widget='CheckBox', action='store_true')
 
     # Reader Execution Settings
     gc.add_argument('--check_resilience', metavar='Binarization', help='Evaluate sample(s) using binarization module', widget='CheckBox', action='store_true')
@@ -46,6 +48,7 @@ def main():
     gc.add_argument('--return_intermediates', metavar='Save Intermediates', help='Click to save intermediate data structures (flow fields, binarized images, intensity distributions)', widget='CheckBox', action='store_true')
     
     gc.add_argument('--stitch_barcode', metavar='Dataset Barcode', help="Generates an aggregate barcode for the dataset", widget="CheckBox", action='store_true')
+    gc.add_argument('--normalize_data', metavar='Normalize Dataset Barcode', help='Uses the dataset to generate a normalized aggregate barcode for the dataset', widget='CheckBox', action='store_true')
 
     gc.add_argument('--configuration_file', metavar='Configuration YAML File', help="Load a preexisting configuration file for the settings", widget="FileChooser", gooey_options = {
         'wildcard': "YAML (*.yaml)|*.yaml|"
@@ -86,8 +89,19 @@ def main():
 
     flow_settings.add_argument('--downsample', metavar = 'Downsample', help = "Controls the downsampling rate of the flow field (larger values give less precision, less prone to noise)", widget = 'IntegerField', default = 8, gooey_options = {
         'min':1,
-        'increment':1,
+        'increment':1
     })
+    
+    flow_settings.add_argument('--nm_pixel_ratio', metavar = 'Nanometer to Pixel Ratio', help = "Set the ratio of nanometers to pixels (leave at default if this is variable within your dataset)", widget= 'IntegerField', default = 1, gooey_options = {
+        'min':1,
+        'increment':1
+    })
+    
+    flow_settings.add_argument('--frame_interval', metavar = 'Frame Interval', help = "Set the interval (in seconds) between frames (leave at default if this is variable within your dataset", widget= 'IntegerField', default = 1, gooey_options = {
+        'min':1,
+        'increment':1
+    })
+    
 
     coarse_settings = parser.add_argument_group('Intensity Distribution Settings')
 
@@ -108,31 +122,49 @@ def main():
     })
 
     barcode_generator = parser.add_argument_group('Barcode Generator + CSV Aggregator')
+    barcode_generator.add_argument('--csv_paths', metavar = 'CSV File Locations', widget='MultiFileChooser', help="Select the CSV files representing the datasets you would like to combine", gooey_options = {
+        'wildcard': "CSV Document (*.csv)|*.csv"})
+    barcode_generator.add_argument('--combined_location', metavar = 'Aggregate Location', widget='FileSaver', help="Select a location for the aggregate CSV file to be located", gooey_options = {
+        'default_file': "aggregate_summary.csv"
+    })
+    barcode_generator.add_argument('--generate_agg_barcode', metavar = 'Generate Aggregate Barcode', widget='CheckBox', help="Click to generate an aggregate barcode from these files", action="store_true")
+    barcode_generator.add_argument('--normalize_agg_barcode', metavar = 'Normalize Aggregate Barcode', widget='CheckBox', help="Click to normalize the barcode (color will be determined by the limits of the dataset)", action='store_true')
+    
+    
     
     settings = parser.parse_args()
-
-    if not (settings.dir_path or settings.file_path):
-        print("No file or directory has been selected, exiting the program...")
-        sys.exit()
-
-    if not (settings.channels or settings.channel_selection):
-        print("No channel has been specified, exiting the program...")
-        sys.exit()
-
-    dir_name = settings.dir_path if settings.dir_path else settings.file_path
-
-    if settings.configuration_file:
-        with open(settings.configuration_file, 'r') as f:
-            config_data = yaml.load(f, Loader=yaml.FullLoader)
-            # if config_data['reader']['channel_select'] == 'All':
-            #     config_data['reader']['channel_select']
-
-    else: 
-        config_data = set_config_data(settings)
-
-    print(dir_name, flush = True)
     
-    process_directory(dir_name, config_data)
+    if (settings.barcode_generation):
+        files = settings.csv_paths.split(',')
+        combined_csv_loc = settings.combined_location
+
+        gen_barcode = settings.generate_agg_barcode
+        normalize_data = settings.normalize_agg_barcode
+        generate_aggregate_csv(files, combined_csv_loc, gen_barcode, normalize_data)
+        
+    else:
+        if not (settings.dir_path or settings.file_path):
+            print("No file or directory has been selected, exiting the program...")
+            sys.exit()
+
+        if not (settings.channels or settings.channel_selection):
+            print("No channel has been specified, exiting the program...")
+            sys.exit()
+
+        dir_name = settings.dir_path if settings.dir_path else settings.file_path
+
+        if settings.configuration_file:
+            with open(settings.configuration_file, 'r') as f:
+                config_data = yaml.load(f, Loader=yaml.FullLoader)
+                # if config_data['reader']['channel_select'] == 'All':
+                #     config_data['reader']['channel_select']
+
+        else: 
+            config_data = set_config_data(settings)
+
+        print(dir_name, flush = True)
+
+        process_directory(dir_name, config_data)
 
 def set_config_data(args = None):
     config_data = {}
@@ -154,6 +186,7 @@ def set_config_data(args = None):
         }
         
         writer_data = {
+            'normalize_data':args.normalize_data,
             'return_intermediates':args.return_intermediates,
             'stitch_barcode':args.stitch_barcode
         }
@@ -170,7 +203,9 @@ def set_config_data(args = None):
         if reader_data['flow']:
             flow_data = {
                 'downsample':int(args.downsample),
-                'frame_step':int(args.flow_f_step)
+                'frame_step':int(args.flow_f_step),
+                'frame_interval':int(args.frame_interval),
+                'nm_pixel_ratio':int(args.nm_pixel_ratio)
             }
 
         if reader_data['coarsening']:

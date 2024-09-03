@@ -12,6 +12,12 @@ from skimage.measure import label, regionprops
 
 from scipy import ndimage
 
+def top_ten_average(lst):
+    lst.sort(reverse=True)
+    length = len(lst)
+    top_ten_percent = int(np.ceil(length * 0.1))
+    return np.mean(lst[0:top_ten_percent])
+
 def check_span(frame):
 
     def check_connected(frame, axis=0):
@@ -151,10 +157,13 @@ def check_resilience(file, name, channel, R_offset, frame_step, frame_start_perc
     ax.set_xlabel("Frames")
     ax.set_ylabel("Proportion of orginal void size")
     #Calculate
+
+    img_dims = image[0].shape[0] * image[0].shape[1]
     
     avg_percent_change = np.mean(largest_void_lst[start_index:stop_index])/percent_gain_initial_list
-    max_void_size = max(largest_void_lst)/(len(image[0,0,:])*len(image[0,:,0]))
-    island_size = max(island_area_lst)/(len(image[0,0,:])*len(image[0,:,0]))
+    max_void_size = max(largest_void_lst)/img_dims
+
+    island_size = top_ten_average(island_area_lst)/img_dims
     island_movement = np.array(island_position_lst)[:-1,:] - np.array(island_position_lst)[1:,:]
     island_speed = np.linalg.norm(island_movement,axis = 1)
     island_direction = np.arctan2(island_movement[:,1],island_movement[:,0])

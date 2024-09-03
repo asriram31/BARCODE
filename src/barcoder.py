@@ -59,12 +59,13 @@ def execute_htp(filepath, config_data):
         if coarse == True:
             fframe, lframe = coarse_data['evaluation_settings'].values()
             percent_frames = coarse_data['mean_mode_frames_percent']
-            c, cfig, c_area1, c_area2, kurt_diff, skew_diff = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, percent_frames, save_intermediates, verbose)
+            perc_increase, cfig, max_kurt, max_skew, max_mean_mode, kurt_diff, skew_diff = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, percent_frames, save_intermediates, verbose)
         else:
-            c = None
+            perc_increase = None
             cfig = None
-            c_area1 = None
-            c_area2 = None
+            max_kurt = None
+            max_skew = None 
+            max_mean_mode = None
             kurt_diff = None
             skew_diff = None
 
@@ -91,9 +92,7 @@ def execute_htp(filepath, config_data):
             plt.close(fig)
         plt.close('all')
 
-        result = [channel, spanning, island_size, void_value, void_growth,  c, c_area1, c_area2, kurt_diff, skew_diff, avg_vel, avg_speed, avg_div, island_movement, direct, directSD]
-
-#         barcode = create_barcode(result)
+        result = [channel, spanning, island_size, void_value, void_growth, max_kurt, max_skew, max_mean_mode, perc_increase, kurt_diff, skew_diff, avg_vel, avg_speed, avg_div, island_movement, direct, directSD]
 
         vprint('Channel Screening Completed')
             
@@ -116,10 +115,14 @@ def execute_htp(filepath, config_data):
             if check_channel_dim(file[:,:,:,channel]) and not accept_dim_channel:
                 vprint('Channel too dim, not enough signal, skipping...')
                 continue
-            results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
+            elif check_channel_dim(file[:,:,:,channel]) and accept_dim_channel:
+                vprint('Warning: channel is dim. Accuracy of screening may be limited by this.')
+                results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
+                results.insert(1, 1) # Indicate dim channel flag present
+            else:
+                results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
+                results.insert(1, 0) # Indicate no flags present
             rfc.append(results)
-#             if stitch_barcode:
-#                     barcodes.append(barcode)
     
     else:
         while channel_select < 0:
@@ -129,10 +132,12 @@ def execute_htp(filepath, config_data):
         vprint('Channel: ', channel_select)
         if check_channel_dim(file[:,:,:,channel_select]):
             vprint('Warning: channel is dim. Accuracy of screening may be limited by this.')
-        results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data)
+            results = check(channel_select, resilience, flow, coarsening, r_data, f_data, c_data)
+            results.insert(1, 1) # Indicate dim channel flag present
+        else:
+            results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
+            results.insert(1, 0) # Indicate no flags present
         rfc.append(results)
-#         if stitch_barcode:
-#             barcodes.append(barcode)
 
     return rfc
 
@@ -172,15 +177,12 @@ def process_directory(root_dir, config_data):
         elapsed_time = end_time - start_time
         vprint('Time Elapsed:', elapsed_time)
         time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
-        
-#         all_barcode_data.append(barcode_data)
         output_filepath = os.path.join(dir_name, filename + ' summary.csv')
         write_file(output_filepath, all_data)
         
         if stitch_barcode:
             output_figpath = os.path.join(dir_name, filename + ' summary barcode')
             gen_combined_barcode(np.array(rfc_data), output_figpath, normalize_data)
-#             generate_stitched_barcode(all_barcode_data, output_figpath)
 
         settings_loc = os.path.join(dir_name, filename + " settings.yaml")
         with open(settings_loc, 'w+', encoding="utf-8") as ff:
@@ -190,7 +192,6 @@ def process_directory(root_dir, config_data):
             
     else: 
         all_data = []
-#         all_barcode_data = []
         all_rfc_data = []
         time_filepath = os.path.join(root_dir, os.path.basename(root_dir) + ' time.txt')
         time_file = open(time_filepath, "w", encoding="utf-8")
@@ -232,7 +233,7 @@ def process_directory(root_dir, config_data):
         output_filepath = os.path.join(root_dir, os.path.basename(root_dir) + " Summary.csv")
         write_file(output_filepath, all_data)
         
-        print(all_rfc_data)
+        # print(all_rfc_data)
         
         if stitch_barcode:
             output_figpath = os.path.join(root_dir, os.path.basename(root_dir) + '_Summary Barcode')

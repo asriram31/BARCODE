@@ -89,17 +89,17 @@ def main():
 
     flow_settings.add_argument('--downsample', metavar = 'Downsample', help = "Controls the downsampling rate of the flow field (larger values give less precision, less prone to noise)", widget = 'IntegerField', default = 8, gooey_options = {
         'min':1,
-        'increment':1,
+        'increment':1
     })
     
-    flow_settings.add_argument('--nm_pixel_ratio', metavar = 'Nanometer to Pixel Ratio', help = "Set the ratio of nanometers to pixels (leave at default if this is variable within your dataset", widget= = 'IntegerField', default = 1, gooey_options = {
+    flow_settings.add_argument('--nm_pixel_ratio', metavar = 'Nanometer to Pixel Ratio', help = "Set the ratio of nanometers to pixels (leave at default if this is variable within your dataset)", widget= 'IntegerField', default = 1, gooey_options = {
         'min':1,
-        'increment':1,
+        'increment':1
     })
     
-    flow_settings.add_argument('--frame_interval', metavar = 'Frame Interval', help = "Set the interval (in seconds) between frames (leave at default if this is variable within your dataset", widget= = 'IntegerField', default = 1, gooey_options = {
+    flow_settings.add_argument('--frame_interval', metavar = 'Frame Interval', help = "Set the interval (in seconds) between frames (leave at default if this is variable within your dataset", widget= 'IntegerField', default = 1, gooey_options = {
         'min':1,
-        'increment':1,
+        'increment':1
     })
     
 

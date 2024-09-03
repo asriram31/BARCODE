@@ -12,6 +12,9 @@ from skimage.measure import label, regionprops
 
 from scipy import ndimage
 
+class MyException(Exception):
+    pass
+
 def top_ten_average(lst):
     lst.sort(reverse=True)
     length = len(lst)
@@ -45,7 +48,7 @@ def check_span(frame):
     
         labeled_first = set(labeled_first[labeled_first != 0])
         labeled_last = set(labeled_last[labeled_last != 0])
-    
+        
         if labeled_first.intersection(labeled_last):
             return 1
         else:
@@ -66,19 +69,25 @@ def track_void(image, name, threshold, step, save_intermediates):
     def find_largest_void(frame, find_void = True):      
         if find_void:
             frame = np.invert(frame)
+            
         labeled, a = label(frame, connectivity= 2, return_num =True) # identify the regions of connectivity 2
+        if a == 0:
+            return frame.shape[0] * frame.shape[1]
+        
         regions = regionprops(labeled) # determines the region properties of the labeled
+        if not regions:
+            return frame.shape[0] * frame.shape[1]
+        
         largest_region = max(regions, key = lambda r: r.area) # determines the region with the maximum area
         return largest_region.area # returns largest region area
 
     def largest_island_position(frame):      
         labeled, a = label(frame, connectivity = 2, return_num =True) # identify the regions of connectivity 2
+        if a == 0:
+            return None
         regions = regionprops(labeled) # determines the region properties of the labeled
         largest_region = max(regions, key = lambda r: r.area) # determines the region with the maximum area
         return largest_region.centroid # returns largest region area
-    
-    def find_largest_void_regions(frame):
-        return max(find_largest_void_mid(frame, find_void = True), find_largest_void_mid(frame, find_void = False))
         
     if save_intermediates:
         filename = os.path.join(name, 'BinarizationData.csv')
@@ -145,34 +154,41 @@ def check_resilience(file, name, channel, R_offset, frame_step, frame_start_perc
     stop_index = int(np.ceil(len(largest_void_lst) * frame_stop_percent))
     start_initial_index = int(np.ceil(len(image)*frame_initial_percent / frame_step))
 
-    percent_gain_initial_list = np.mean(largest_void_lst[0:start_initial_index])
-    percent_gain_list = np.array(largest_void_lst)/percent_gain_initial_list
+    void_gain_initial_list = np.mean(largest_void_lst[0:start_initial_index])
+    void_percent_gain_list = np.array(largest_void_lst)/void_gain_initial_list
+    
+    island_gain_initial_list = np.mean(island_area_lst[0:start_initial_index])
+    island_percent_gain_list = np.array(island_area_lst)/island_gain_initial_list
     
     plot_range = np.arange(start_index * frame_step, stop_index * frame_step, frame_step)
     plot_range[-1] = len(image) - 1 if stop_index * frame_step >= len(image) else stop_index * frame_step
-    ax.plot(plot_range, percent_gain_list[start_index:stop_index])
+    ax.plot(plot_range, void_percent_gain_list[start_index:stop_index], c='b', label='Original Void Size Proportion')
+    ax.plot(plot_range, island_percent_gain_list[start_index:stop_index], c='r', label='Original Island Size Proportion')
     ax.set_xticks(plot_range)
     if stop_index * frame_step >= len(image) != 0:
         ax.set_xlim(left=None, right=len(image) - 1)
     ax.set_xlabel("Frames")
-    ax.set_ylabel("Proportion of orginal void size")
-    #Calculate
-
+    ax.set_ylabel("Fraction")
+    
     img_dims = image[0].shape[0] * image[0].shape[1]
     
-    avg_percent_change = np.mean(largest_void_lst[start_index:stop_index])/percent_gain_initial_list
+    avg_void_percent_change = np.mean(largest_void_lst[start_index:stop_index])/void_gain_initial_list
     max_void_size = max(largest_void_lst)/img_dims
-
+    
+    avg_island_percent_change = np.mean(island_area_lst[start_index:stop_index])/island_gain_initial_list
     island_size = top_ten_average(island_area_lst)/img_dims
-    island_movement = np.array(island_position_lst)[:-1,:] - np.array(island_position_lst)[1:,:]
-    island_speed = np.linalg.norm(island_movement,axis = 1)
-    island_direction = np.arctan2(island_movement[:,1],island_movement[:,0])
-    thresh_speed = 15
-    while len(island_direction[np.where(island_speed < thresh_speed)]) == 0:
-        thresh_speed += 1
-    island_direction = island_direction[np.where(island_speed < thresh_speed)]
-    average_direction = np.average(island_direction)
+    if len(np.array(island_position_lst).shape) < 3:
+        average_direction = 0
+    else:
+        island_movement = np.array(island_position_lst)[:-1,:] - np.array(island_position_lst)[1:,:]
+        island_speed = np.linalg.norm(island_movement,axis = 1)
+        island_direction = np.arctan2(island_movement[:,1],island_movement[:,0])
+        thresh_speed = 15
+        while len(island_direction[np.where(island_speed < thresh_speed)]) == 0:
+            thresh_speed += 1
+        island_direction = island_direction[np.where(island_speed < thresh_speed)]
+        average_direction = np.average(island_direction)
     
     spanning = len([con for con in connected_lst if con == 1])/len(connected_lst)
     
-    return fig, max_void_size, spanning, island_size, average_direction, avg_percent_change
+    return fig, max_void_size, spanning, island_size, average_direction, avg_void_percent_change, avg_island_percent_change

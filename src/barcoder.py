@@ -10,6 +10,9 @@ import matplotlib.colors as mcolors
 from matplotlib import gridspec
 from writer import write_file, gen_combined_barcode
 
+class MyException(Exception):
+    pass
+
 def check_channel_dim(image):
     min_intensity = np.min(image)
     mean_intensity = np.mean(image)
@@ -39,7 +42,17 @@ def execute_htp(filepath, config_data):
             r_offset = resilience_data['r_offset']
             f_step = resilience_data['frame_step']
             f_start, f_stop = resilience_data['evaluation_settings'].values()
-            rfig, void_value, spanning, island_size, island_movement, void_growth = check_resilience(file, fig_channel_dir_name, channel, r_offset, f_step, f_start, f_stop, save_intermediates, verbose)
+            try:
+                rfig, void_value, spanning, island_size, island_movement, void_growth, island_growth = check_resilience(file, fig_channel_dir_name, channel, r_offset, f_step, f_start, f_stop, save_intermediates, verbose)
+            except Exception as e:
+#                 raise MyException(f"Error in binarization module: {e}")
+                rfig = None
+                spanning = None
+                void_value = None
+                island_size = None
+                island_movement = None
+                void_growth = None
+                island_growth = None
         else:
             rfig = None
             spanning = None
@@ -47,9 +60,18 @@ def execute_htp(filepath, config_data):
             island_size = None
             island_movement = None
             void_growth = None
+            island_growth = None
         if flow == True:
             downsample, frame_step, frame_interval, nm_pix_ratio = flow_data.values()
-            direct, directSD, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose)
+            try:
+                direct, directSD, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose)
+            except Exception as e:
+#                 raise MyException(f"Error in optical flow module: {e}")
+                direct = None
+                directSD = None
+                avg_vel = None
+                avg_speed = None
+                avg_div = None
         else:
             direct = None
             directSD = None
@@ -59,7 +81,17 @@ def execute_htp(filepath, config_data):
         if coarse == True:
             fframe, lframe = coarse_data['evaluation_settings'].values()
             percent_frames = coarse_data['mean_mode_frames_percent']
-            perc_increase, cfig, max_kurt, max_skew, max_mean_mode, kurt_diff, skew_diff = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, percent_frames, save_intermediates, verbose)
+            try:
+                perc_increase, cfig, max_kurt, max_skew, max_mean_mode, kurt_diff, skew_diff = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, percent_frames, save_intermediates, verbose)
+            except Exception as e:
+#                 raise MyException(f"Error in intensity distribution module: {e}")
+                perc_increase = None
+                cfig = None
+                max_kurt = None
+                max_skew = None 
+                max_mean_mode = None
+                kurt_diff = None
+                skew_diff = None
         else:
             perc_increase = None
             cfig = None
@@ -92,7 +124,7 @@ def execute_htp(filepath, config_data):
             plt.close(fig)
         plt.close('all')
 
-        result = [channel, spanning, island_size, void_value, void_growth, max_kurt, max_skew, max_mean_mode, perc_increase, kurt_diff, skew_diff, avg_vel, avg_speed, avg_div, island_movement, direct, directSD]
+        result = [channel, spanning, island_size, void_value, void_growth, island_growth, max_kurt, max_skew, max_mean_mode, perc_increase, kurt_diff, skew_diff, avg_vel, avg_speed, avg_div, island_movement, direct, directSD]
 
         vprint('Channel Screening Completed')
             
@@ -198,9 +230,9 @@ def process_directory(root_dir, config_data):
         time_file.write(root_dir + "\n")
         
         start_folder_time = time.time()
+        fresh_flag = True
         
         for dirpath, dirnames, filenames in os.walk(root_dir):
-
             dirnames[:] = [d for d in dirnames]
     
             for filename in filenames:
@@ -213,8 +245,13 @@ def process_directory(root_dir, config_data):
                 except TypeError:
                     continue
                 except Exception as e:
-                    with open(os.path.join(root_dir, "failed_files.txt"), "a", encoding="utf-8") as log_file:
-                        log_file.write(f"File: {file_path}, Exception: {str(e)}\n")
+                    if fresh_flag == True:
+                        with open(os.path.join(root_dir, "failed_files.txt"), "w", encoding="utf-8") as log_file:
+                            log_file.write(f"File: {file_path}, Exception: {str(e)}\n")
+                        fresh_flag = False
+                    else:
+                        with open(os.path.join(root_dir, "failed_files.txt"), "a", encoding="utf-8") as log_file:
+                            log_file.write(f"File: {file_path}, Exception: {str(e)}\n")
                     continue
                 if rfc_data == None:
                     continue
@@ -233,8 +270,6 @@ def process_directory(root_dir, config_data):
         output_filepath = os.path.join(root_dir, os.path.basename(root_dir) + " Summary.csv")
         write_file(output_filepath, all_data)
         
-        # print(all_rfc_data)
-        
         if stitch_barcode:
             output_figpath = os.path.join(root_dir, os.path.basename(root_dir) + '_Summary Barcode')
             gen_combined_barcode(np.array(all_rfc_data), output_figpath, normalize_data)
@@ -244,6 +279,6 @@ def process_directory(root_dir, config_data):
         vprint('Time Elapsed to Process Folder:', elapsed_folder_time)
         time_file.write('Time Elapsed to Process Folder: ' + str(elapsed_folder_time) + "\n")
 
-        settings_loc = os.path.join(root_dir, os.path.basename(root_dir) + "settings.yaml")
+        settings_loc = os.path.join(root_dir, os.path.basename(root_dir) + " Settings.yaml")
         with open(settings_loc, 'w+') as ff:
             yaml.dump(config_data, ff)

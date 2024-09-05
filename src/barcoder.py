@@ -31,6 +31,7 @@ def execute_htp(filepath, config_data):
     vprint = print if verbose else lambda *a, **k: None
 
     def check(channel, resilience, flow, coarse, resilience_data, flow_data, coarse_data):
+        flag = None
         figure_dir_name = remove_extension(filepath) + ' BARCODE Output'
         fig_channel_dir_name = os.path.join(figure_dir_name, 'Channel ' + str(channel))
         if not os.path.exists(figure_dir_name):
@@ -82,7 +83,7 @@ def execute_htp(filepath, config_data):
             fframe, lframe = coarse_data['evaluation_settings'].values()
             percent_frames = coarse_data['mean_mode_frames_percent']
             try:
-                perc_increase, cfig, max_kurt, max_skew, max_mean_mode, kurt_diff, skew_diff = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, percent_frames, save_intermediates, verbose)
+                perc_increase, cfig, max_kurt, max_skew, max_mean_mode, kurt_diff, skew_diff, flag = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, percent_frames, save_intermediates, verbose)
             except Exception as e:
 #                 raise MyException(f"Error in intensity distribution module: {e}")
                 perc_increase = None
@@ -92,6 +93,7 @@ def execute_htp(filepath, config_data):
                 max_mean_mode = None
                 kurt_diff = None
                 skew_diff = None
+                flag = None
         else:
             perc_increase = None
             cfig = None
@@ -100,6 +102,7 @@ def execute_htp(filepath, config_data):
             max_mean_mode = None
             kurt_diff = None
             skew_diff = None
+            flag = None
 
         figpath = os.path.join(fig_channel_dir_name, 'Summary Graphs.png')
         if return_graphs == True:
@@ -125,6 +128,11 @@ def execute_htp(filepath, config_data):
         plt.close('all')
 
         result = [channel, spanning, island_size, void_value, void_growth, island_growth, max_kurt, max_skew, max_mean_mode, perc_increase, kurt_diff, skew_diff, avg_vel, avg_speed, avg_div, island_movement, direct, directSD]
+        if flag is not None and flag != 0:
+            result.insert(1, flag)
+            
+        else:
+            result.insert(1, 0)
 
         vprint('Channel Screening Completed')
             
@@ -150,11 +158,11 @@ def execute_htp(filepath, config_data):
             elif check_channel_dim(file[:,:,:,channel]) and accept_dim_channel:
                 vprint('Warning: channel is dim. Accuracy of screening may be limited by this.')
                 results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
-                results.insert(1, 1) # Indicate dim channel flag present
+                results[1] = results[1] + 1
+                
             else:
                 results = check(channel, resilience, flow, coarsening, r_data, f_data, c_data)
-                results.insert(1, 0) # Indicate no flags present
-            rfc.append(results)
+                rfc.append(results)
     
     else:
         while channel_select < 0:

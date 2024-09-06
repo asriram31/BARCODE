@@ -36,7 +36,7 @@ def check_span(frame):
     
         struct = ndimage.generate_binary_structure(2, 2)
     
-        frame_connections, num_features = ndimage.label(input=frame, structure=struct)
+        frame_connections, num_features = label(frame, connectivity=2)
     
         if axis == 0:
             labeled_first = np.unique(frame_connections[0,:])
@@ -173,7 +173,7 @@ def check_resilience(file, name, channel, R_offset, frame_step, frame_start_perc
     img_dims = image[0].shape[0] * image[0].shape[1]
     
     avg_void_percent_change = np.mean(largest_void_lst[start_index:stop_index])/void_gain_initial_list
-    max_void_size = max(largest_void_lst)/img_dims
+    max_void_size = top_ten_average(largest_void_lst)/img_dims
     
     avg_island_percent_change = np.mean(island_area_lst[start_index:stop_index])/island_gain_initial_list
     island_size = top_ten_average(island_area_lst)/img_dims

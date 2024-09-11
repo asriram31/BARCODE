@@ -145,11 +145,11 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     
     tot_frames_data = np.append(i_frames_data, f_frames_data)
     
-    for i, frame in enumerate(tot_frames_data): # Flags if oe of the frames used for comparison is saturated
+    for i, frame in enumerate(tot_frames_data): # Flags if one of the frames used for comparison is saturated
         mean_int, mode_int = calculate_mean_mode(tot_frames_data[i])
         if mean_int == mode_int:
             flag = 2
-            return [None] * 7 + [flag]
+            break
     
     if last_frame == False or last_frame >= len(im):
         last_frame = len(im) - 1
@@ -172,8 +172,8 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     
     ax.plot(plt_bins, i_count, '^-', ms=4, c='darkred', alpha=0.2, label= "frame " + str(first_frame+1)+" dist")
     ax.plot(plt_bins, f_count, 'v-', ms=4, c='purple',   alpha=0.2, label= "frame " + str(last_frame+1)+" dist")
-    ax.axvline(x=i_diff, ms = 4, c = 'darkred', alpha=0.6, label="frame " + str(first_frame+1)+" mean-mode difference")
-    ax.axvline(x=f_diff, ms = 4, c = 'purple', alpha=0.6, label="frame " + str(last_frame+1)+" mean-mode difference")
+    ax.axvline(x=i_mean, ms = 4, c = 'darkred', alpha=0.6, label="frame " + str(first_frame+1)+" mean")
+    ax.axvline(x=f_mean, ms = 4, c = 'purple', alpha=0.6, label="frame " + str(last_frame+1)+" mean")
 
     ax.axhline(0, color='dimgray', alpha=0.6)
     ax.set_xlabel("Pixel intensity value")

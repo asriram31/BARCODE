@@ -61,25 +61,7 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
     channels = data[:,0]
     unique_channels = np.unique(channels)
     flags = data[:,1]
-    connectivity = data[:,2]
-    island_size = data[:,3]
-    void_value = data[:,4]
-    void_growth = data[:,5]
-    island_growth = data[:,6]
-    max_kurtosis = data[:,7]
-    max_skewness = data[:,8]
-    max_mean_mode = data[:,9]
-    mean_mode_diff = data[:,10]
-    kurtosis_diff = data[:,11]
-    skewness_diff = data[:,12]
-    avg_vel = data[:,13]
-    avg_speed = data[:,14]
-    avg_div = data[:,15]
-    island_dir = data[:,16]
-    flow_dir = data[:,17]
-    flow_dir_sd = data[:,18]
     all_entries = [data[:,i] for i in range(2, 19)]
-#     all_entries = [connectivity, island_size, void_value, void_growth, island_growth, max_kurtosis, max_skewness, max_mean_mode, mean_mode_diff, kurtosis_diff, skewness_diff, avg_vel, avg_speed, avg_div, island_dir, flow_dir, flow_dir_sd]
 
     # Define normalization limits of floating point values
     connected_lim = [0, 1] # Limit on the percentage of frames that are connected
@@ -97,6 +79,8 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
 
     if normalize_data:
         for i in range(17):
+            if all(v is None for v in all_entries[i]):
+                continue
             limits[i] = [np.min(all_entries[i]), np.max(all_entries[i])]
     colormap = plt.get_cmap('plasma')  # Colormap for floats
 

@@ -15,6 +15,12 @@ from scipy import ndimage
 class MyException(Exception):
     pass
 
+def binarize(frame, offset_threshold = 0.1):
+    avg_intensity = np.mean(frame)
+    threshold = avg_intensity * (1 + offset_threshold)
+    new_frame = np.where(frame < threshold, 0, 1)
+    return new_frame
+
 def top_ten_average(lst):
     lst.sort(reverse=True)
     length = len(lst)
@@ -36,7 +42,7 @@ def check_span(frame):
     
         struct = ndimage.generate_binary_structure(2, 2)
     
-        frame_connections, num_features = label(frame, connectivity=2)
+        frame_connections, num_features = ndimage.label(input=frame, structure=struct)
     
         if axis == 0:
             labeled_first = np.unique(frame_connections[0,:])
@@ -56,15 +62,10 @@ def check_span(frame):
     
     return (check_connected(frame, axis = 0) or check_connected(frame, axis = 1))
 
-def track_void(image, name, threshold, step, save_intermediates):
+def track_void(image, name, threshold, step, return_graphs, save_intermediates):
     downsample = 4
     xindices = np.arange(0, image[0].shape[0], downsample)
     yindices = np.arange(0, image[0].shape[1], downsample)
-    def binarize(frame, offset_threshold):
-        avg_intensity = np.mean(frame)
-        threshold = avg_intensity * (1 + offset_threshold)
-        new_frame = np.where(frame < threshold, 0, 1)
-        return new_frame
         
     def find_largest_void(frame, find_void = True):      
         if find_void:
@@ -98,10 +99,21 @@ def track_void(image, name, threshold, step, save_intermediates):
     island_area_lst = []
     island_position_lst = []
     connected_lst = []
+    region_lst = []
+    
+    save_spots = np.linspace(0, len(image), 3)
     
     for i in range(0, len(image), step):
         new_image = image[i][xindices][:,yindices]
         new_frame = binarize(new_image, threshold)
+        
+        if i in save_spots and return_graphs:
+            compare_fig, comp_axs = plt.subplots(ncols = 2, figsize=(10, 5))
+            comp_axs[0].imshow(new_image, cmap='gray')
+            comp_axs[1].imshow(new_frame, cmap='gray')
+            plt.savefig(os.path.join(name, 'Binarization Frame ' + str(i) + ' Comparison.png'))
+            plt.close('all')
+            
         if save_intermediates:
             csvwriter.writerow([str(i)])
             csvwriter.writerows(new_frame)
@@ -111,14 +123,30 @@ def track_void(image, name, threshold, step, save_intermediates):
         island_area_lst.append(find_largest_void(new_frame, find_void = False))
         island_position_lst.append(largest_island_position(new_frame))
         connected_lst.append(check_span(new_frame))
+        
+        labeled, a = label(new_frame, connectivity = 2, return_num =True) # identify the regions of connectivity 2
+
+        regions = regionprops(labeled) # determines the region properties of the labeled
+        
+        region_lst.append(regions)
     i = len(image) - 1    
     if i % step != 0:
         new_image = image[i][xindices][:,yindices]
         new_frame = binarize(new_image, threshold)
+        
+        if i in save_spots and return_graphs:
+            compare_fig, comp_axs = plt.subplots(2, figsize=(10, 5))
+            comp_axs[0].imshow(new_image)
+            comp_axs[1].imshow(new_frame)
+            plt.save(os.path.join(name, 'Binarization Frame ' + str(i) + ' Comparison.png'))
+        
+        
         if save_intermediates:
             csvwriter.writerow([str(i)])
             csvwriter.writerows(new_frame)
             csvwriter.writerow([])
+        
+        
         
         void_lst.append(find_largest_void(new_frame))
         island_area_lst.append(find_largest_void(new_frame, find_void = False))
@@ -130,9 +158,9 @@ def track_void(image, name, threshold, step, save_intermediates):
     if save_intermediates:
         f.close()
 
-    return void_lst, island_area_lst, island_position_lst, connected_lst
+    return void_lst, island_area_lst, island_position_lst, connected_lst, region_lst
 
-def check_resilience(file, name, channel, R_offset, frame_step, frame_start_percent, frame_stop_percent, save_intermediates, verbose):
+def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame_start_percent = 0.9, frame_stop_percent = 1, return_graphs = False, save_intermediates = False, verbose = True):
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Resilience Testing...')
@@ -149,7 +177,7 @@ def check_resilience(file, name, channel, R_offset, frame_step, frame_start_perc
     while len(image) <= frame_step:
         frame_step = frame_step / 5
     
-    largest_void_lst, island_area_lst, island_position_lst, connected_lst = track_void(image, name, R_offset, frame_step, save_intermediates)
+    largest_void_lst, island_area_lst, island_position_lst, connected_lst, r_lst = track_void(image, name, R_offset, frame_step, return_graphs, save_intermediates)
     start_index = int(np.floor(len(image) * frame_start_percent / frame_step))
     stop_index = int(np.ceil(len(largest_void_lst) * frame_stop_percent))
     start_initial_index = int(np.ceil(len(image)*frame_initial_percent / frame_step))
@@ -160,6 +188,7 @@ def check_resilience(file, name, channel, R_offset, frame_step, frame_start_perc
     island_gain_initial_list = np.mean(island_area_lst[0:start_initial_index])
     island_percent_gain_list = np.array(island_area_lst)/island_gain_initial_list
     
+    start_index = 0
     plot_range = np.arange(start_index * frame_step, stop_index * frame_step, frame_step)
     plot_range[-1] = len(image) - 1 if stop_index * frame_step >= len(image) else stop_index * frame_step
     ax.plot(plot_range, void_percent_gain_list[start_index:stop_index], c='b', label='Original Void Size Proportion')
@@ -190,5 +219,6 @@ def check_resilience(file, name, channel, R_offset, frame_step, frame_start_perc
         average_direction = np.average(island_direction)
     
     spanning = len([con for con in connected_lst if con == 1])/len(connected_lst)
+
     
     return fig, max_void_size, spanning, island_size, average_direction, avg_void_percent_change, avg_island_percent_change

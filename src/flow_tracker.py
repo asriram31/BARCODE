@@ -112,7 +112,6 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
     direct = dirMeans.mean()
     directSD = dirSDs.mean()
     mean_div = divs.mean()
-    vprint("vx mean: ", vxMeans.mean(), "\n","vy mean: ", vyMeans.mean(), "\n", "angle:", direct, "\n", "angular stdev:", directSD, "\n", "divergence mean:", mean_div)
     mean_vel = (vxMeans.mean() ** 2 + vyMeans.mean() ** 2) ** (1/2)
     mean_speed = speeds.mean()
     

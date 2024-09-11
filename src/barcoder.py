@@ -131,12 +131,8 @@ def execute_htp(filepath, config_data, fail_file_loc):
         plt.close('all')
 
         result = [channel, spanning, island_size, void_value, void_growth, island_growth, max_kurt, max_skew, max_mean_mode, perc_increase, kurt_diff, skew_diff, avg_vel, avg_speed, avg_div, island_movement, direct, directSD]
-        if flag is not None and flag != 0:
-            result.insert(1, flag)
-            
-        else:
-            result.insert(1, 0)
-
+        result.insert(1, flag)
+        
         vprint('Channel Screening Completed')
             
         return result
@@ -176,10 +172,9 @@ def execute_htp(filepath, config_data, fail_file_loc):
         if check_channel_dim(file[:,:,:,channel_select]):
             vprint('Warning: channel is dim. Accuracy of screening may be limited by this.')
             results = check(filepath, channel_select, resilience, flow, coarsening, r_data, f_data, c_data, fail_file_loc)
-            results.insert(1, 1) # Indicate dim channel flag present
+            results[1] = results[1] + 1 # Indicate dim channel flag present
         else:
             results = check(filepath, channel_select, resilience, flow, coarsening, r_data, f_data, c_data, fail_file_loc)
-            results.insert(1, 0) # Indicate no flags present
         rfc.append(results)
 
     return rfc

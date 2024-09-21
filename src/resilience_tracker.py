@@ -140,20 +140,15 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
             comp_axs[1].imshow(new_frame)
             plt.save(os.path.join(name, 'Binarization Frame ' + str(i) + ' Comparison.png'))
         
-        
         if save_intermediates:
             csvwriter.writerow([str(i)])
             csvwriter.writerows(new_frame)
             csvwriter.writerow([])
         
-        
-        
         void_lst.append(find_largest_void(new_frame))
         island_area_lst.append(find_largest_void(new_frame, find_void = False))
         island_position_lst.append(largest_island_position(new_frame))
         connected_lst.append(check_span(new_frame))
-
-        
 
     if save_intermediates:
         f.close()
@@ -198,8 +193,11 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
         ax.set_xlim(left=None, right=len(image) - 1)
     ax.set_xlabel("Frames")
     ax.set_ylabel("Fraction")
+
+
+    downsample = 4
     
-    img_dims = image[0].shape[0] * image[0].shape[1]
+    img_dims = image[0].shape[0] * image[0].shape[1] / (downsample ** 2)
     
     avg_void_percent_change = np.mean(largest_void_lst[start_index:stop_index])/void_gain_initial_list
     max_void_size = top_ten_average(largest_void_lst)/img_dims

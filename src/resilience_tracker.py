@@ -204,7 +204,7 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
     
     avg_island_percent_change = np.mean(island_area_lst[start_index:stop_index])/island_gain_initial_list
     island_size = top_ten_average(island_area_lst)/img_dims
-    if len(np.array(island_position_lst).shape) < 3:
+    if len(np.array(island_position_lst).shape) != 2:
         average_direction = 0
     else:
         island_movement = np.array(island_position_lst)[:-1,:] - np.array(island_position_lst)[1:,:]

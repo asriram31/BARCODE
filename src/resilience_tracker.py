@@ -208,7 +208,7 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
     ax.set_ylabel("Fraction")
 
 
-    downsample = 4
+    downsample = 2
     
     img_dims = image[0].shape[0] * image[0].shape[1] / (downsample ** 2)
     

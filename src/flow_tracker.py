@@ -9,6 +9,15 @@ import os, math, csv, functools, builtins
 import matplotlib.ticker as ticker
 import statistics
 
+def groupAvg(arr, N, bin_mask=True):
+    result = np.cumsum(arr, 0)[N-1::N]/float(N)
+    result = np.cumsum(result, 1)[:,N-1::N]/float(N)
+    result[1:] = result[1:] - result[:-1]
+    result[:,1:] = result[:,1:] - result[:,:-1]
+    if bin_mask:
+        result = np.where(result > 0, 1, 0)
+    return result
+
 def divergence_npgrad(flow):
     flow = np.swapaxes(flow, 0, 1)
     Fx, Fy = flow[:, :, 0], flow[:, :, 1]
@@ -16,20 +25,25 @@ def divergence_npgrad(flow):
     dFy_dy = np.gradient(Fy, axis=1)
     return dFx_dx + dFy_dy
 
-def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose):
+def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose, winsize = 32):
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Flow Testing')
     #Cutoff magnitude to consider a vector to be null; also helps to avoid divide-by-zero errors
     flt_tol = 1e-10
     def execute_opt_flow(images, start, stop, divs, dirMeans, dirSDs, vxMeans, vyMeans, speeds, pos, xindices, yindices, save_intermediates, writer):
-        flow = cv.calcOpticalFlowFarneback(images[start], images[stop], None, 0.5, 3, 32, 3, 5, 1.2, 0)
+        flow = cv.calcOpticalFlowFarneback(images[start], images[stop], None, 0.5, 3, winsize, 3, 5, 1.2, 0)
         divs = np.append(divs, divergence_npgrad(flow))
         
-        downU = flow[:,:,0][xindices][:,yindices]
+        downU = groupAvg(flow[:,:,0], downsample, False)
+        downV = groupAvg(flow[:,:,1], downsample, False)
         downU = np.flipud(downU)
-        downV = -1*flow[:,:,1][xindices][:,yindices]
         downV = np.flipud(downV)
+        
+#         downU = flow[:,:,0][xindices][:,yindices]
+#         downU = np.flipud(downU)
+#         downV = -1*flow[:,:,1][xindices][:,yindices]
+#         downV = np.flipud(downV)
 
         directions = np.arctan2(downV, downU)
         dirMean = directions.mean()
@@ -74,11 +88,6 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
 
     xindices = np.arange(0, images[0].shape[0], downsample)
     yindices = np.arange(0, images[0].shape[1], downsample)
-
-    radii = np.zeros((len(xindices),len(yindices)))
-    for i in range(0,len(xindices)):
-        for j in range(0,len(yindices)):
-            radii[i][j] = np.sqrt(xindices[i]**2 + yindices[j]**2)
 
     #For each consecutive pair
     pos = 0

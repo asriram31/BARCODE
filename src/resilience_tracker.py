@@ -15,6 +15,15 @@ from scipy import ndimage
 class MyException(Exception):
     pass
 
+def groupAvg(arr, N, bin_mask=True):
+    result = np.cumsum(arr, 0)[N-1::N]/float(N)
+    result = np.cumsum(result, 1)[:,N-1::N]/float(N)
+    result[1:] = result[1:] - result[:-1]
+    result[:,1:] = result[:,1:] - result[:,:-1]
+    if bin_mask:
+        result = np.where(result > 0, 1, 0)
+    return result
+
 def binarize(frame, offset_threshold = 0.1):
     avg_intensity = np.mean(frame)
     threshold = avg_intensity * (1 + offset_threshold)
@@ -63,9 +72,9 @@ def check_span(frame):
     return (check_connected(frame, axis = 0) or check_connected(frame, axis = 1))
 
 def track_void(image, name, threshold, step, return_graphs, save_intermediates):
-    downsample = 4
-    xindices = np.arange(0, image[0].shape[0], downsample)
-    yindices = np.arange(0, image[0].shape[1], downsample)
+#     downsample = 4
+#     xindices = np.arange(0, image[0].shape[0], downsample)
+#     yindices = np.arange(0, image[0].shape[1], downsample)
         
     def find_largest_void(frame, find_void = True):      
         if find_void:
@@ -104,8 +113,10 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
     save_spots = np.linspace(0, len(image), 3)
     
     for i in range(0, len(image), step):
-        new_image = image[i][xindices][:,yindices]
-        new_frame = binarize(new_image, threshold)
+        new_image = binarize(image[i])
+        new_frame = groupAvg(new_image, 2)
+#         new_image = image[i][xindices][:,yindices]
+#         new_frame = binarize(new_image, threshold)
         
         if i in save_spots and return_graphs:
             compare_fig, comp_axs = plt.subplots(ncols = 2, figsize=(10, 5))
@@ -131,8 +142,10 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
         region_lst.append(regions)
     i = len(image) - 1    
     if i % step != 0:
-        new_image = image[i][xindices][:,yindices]
-        new_frame = binarize(new_image, threshold)
+        new_image = binarize(image[i])
+        new_frame = groupAvg(new_image, 2)
+#         new_image = image[i][xindices][:,yindices]
+#         new_frame = binarize(new_image, threshold)
         
         if i in save_spots and return_graphs:
             compare_fig, comp_axs = plt.subplots(2, figsize=(10, 5))

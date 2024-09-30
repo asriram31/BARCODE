@@ -12,7 +12,7 @@ from barcoder import process_directory, execute_htp
 from gooey import Gooey, GooeyParser
 from writer import generate_aggregate_csv
 
-@Gooey(program_name="DMREF BARCODE Program", tabbed_groups=True, navigation='Tabbed')
+@Gooey(program_name="BARCODE Program", tabbed_groups=True, navigation='Tabbed')
 def main():
     parser = GooeyParser(description='Code that runs through the BARCODE code developed by the DMREF group')
 
@@ -82,7 +82,7 @@ def main():
 
     flow_settings = parser.add_argument_group('Optical Flow Settings')
 
-    flow_settings.add_argument('--flow_f_step', metavar = 'Frame Step', help = "Controls the interval between frames the flow field is calculated at", widget = 'Slider', default = 40, gooey_options = {
+    flow_settings.add_argument('--flow_f_step', metavar = 'Frame Step', help = "Controls the interval between frames the flow field is calculated at", widget = 'Slider', default = 10, gooey_options = {
         'min':1,
         'increment':1
     })

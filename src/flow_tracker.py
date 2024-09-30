@@ -39,11 +39,6 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
         downV = groupAvg(flow[:,:,1], downsample, False)
         downU = np.flipud(downU)
         downV = np.flipud(downV)
-        
-#         downU = flow[:,:,0][xindices][:,yindices]
-#         downU = np.flipud(downU)
-#         downV = -1*flow[:,:,1][xindices][:,yindices]
-#         downV = np.flipud(downV)
 
         directions = np.arctan2(downV, downU)
         dirMean = directions.mean()

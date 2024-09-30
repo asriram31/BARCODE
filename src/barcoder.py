@@ -199,7 +199,7 @@ def process_directory(root_dir, config_data):
         file_path = root_dir
         filename = os.path.basename(file_path)
         dir_name = os.path.dirname(file_path)
-        
+        rfc_data = None
         ff_loc = os.path.join(dir_name, remove_extension(filename) + "_failed_files.txt")
         open(ff_loc, 'w').close()
         time_filepath = os.path.join(dir_name, filename + 'time.txt')

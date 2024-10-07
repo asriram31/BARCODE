@@ -1,8 +1,8 @@
 from reader import read_file
 import os, csv, sys, yaml, time, functools, builtins
-from resilience_tracker import check_resilience
-from flow_tracker import check_flow
-from coarse_tracker import check_coarse
+from binarization import check_resilience
+from flow import check_flow
+from intensity_distribution_comparison import check_coarse
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -83,6 +83,11 @@ def main():
     flow_settings = parser.add_argument_group('Optical Flow Settings')
 
     flow_settings.add_argument('--flow_f_step', metavar = 'Frame Step', help = "Controls the interval between frames the flow field is calculated at", widget = 'Slider', default = 10, gooey_options = {
+        'min':1,
+        'increment':1
+    })
+    
+    flow_settings.add_argument('--win_size', metavar = 'Window Size', help = "Controls the window size for the optical flow field estimation", widget = 'IntegerField', default = 32, gooey_options = {
         'min':1,
         'increment':1
     })
@@ -205,7 +210,8 @@ def set_config_data(args = None):
                 'downsample':int(args.downsample),
                 'frame_step':int(args.flow_f_step),
                 'frame_interval':int(args.frame_interval),
-                'nm_pixel_ratio':int(args.nm_pixel_ratio)
+                'nm_pixel_ratio':int(args.nm_pixel_ratio),
+                'win_size':int(args.win_size)
             }
 
         if reader_data['coarsening']:

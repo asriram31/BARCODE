@@ -25,7 +25,7 @@ def divergence_npgrad(flow):
     dFy_dy = np.gradient(Fy, axis=1)
     return dFx_dx + dFy_dy
 
-def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose, winsize = 32):
+def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose, winsize = 16):
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Flow Testing')

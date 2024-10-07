@@ -15,6 +15,10 @@ from scipy import ndimage
 class MyException(Exception):
     pass
 
+def inv(arr):
+    ones_arr = np.ones(shape = arr.shape)
+    return ones_arr - arr
+
 def groupAvg(arr, N, bin_mask=True):
     result = np.cumsum(arr, 0)[N-1::N]/float(N)
     result = np.cumsum(result, 1)[:,N-1::N]/float(N)
@@ -37,7 +41,6 @@ def top_ten_average(lst):
     return np.mean(lst[0:top_ten_percent])
 
 def check_span(frame):
-
     def check_connected(frame, axis=0):
         # Ensures that either connected across left-right or up-down axis
         if axis == 0:
@@ -72,15 +75,12 @@ def check_span(frame):
     return (check_connected(frame, axis = 0) or check_connected(frame, axis = 1))
 
 def track_void(image, name, threshold, step, return_graphs, save_intermediates):
-#     downsample = 4
-#     xindices = np.arange(0, image[0].shape[0], downsample)
-#     yindices = np.arange(0, image[0].shape[1], downsample)
-        
-    def find_largest_void(frame, find_void = True):      
+    def find_largest_void(frame, find_void):      
         if find_void:
-            frame = np.invert(frame)
-            
-        labeled, a = label(frame, connectivity= 2, return_num =True) # identify the regions of connectivity 2
+            eval_frame = inv(frame)
+        else:
+            eval_frame = frame
+        labeled, a = label(eval_frame, connectivity= 2, return_num =True) # identify the regions of connectivity 2
         if a == 0:
             return frame.shape[0] * frame.shape[1]
         
@@ -115,13 +115,14 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
     for i in range(0, len(image), step):
         new_image = binarize(image[i])
         new_frame = groupAvg(new_image, 2)
-#         new_image = image[i][xindices][:,yindices]
-#         new_frame = binarize(new_image, threshold)
         
         if i in save_spots and return_graphs:
             compare_fig, comp_axs = plt.subplots(ncols = 2, figsize=(10, 5))
-            comp_axs[0].imshow(new_image, cmap='gray')
+            comp_axs[0].imshow(image[i], cmap='gray')
             comp_axs[1].imshow(new_frame, cmap='gray')
+            ticks_adj = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x * 2))
+            comp_axs[1].xaxis.set_major_formatter(ticks_adj)
+            comp_axs[1].yaxis.set_major_formatter(ticks_adj)
             plt.savefig(os.path.join(name, 'Binarization Frame ' + str(i) + ' Comparison.png'))
             plt.close('all')
             
@@ -129,11 +130,12 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
             csvwriter.writerow([str(i)])
             csvwriter.writerows(new_frame)
             csvwriter.writerow([])
-        
-        void_lst.append(find_largest_void(new_frame))
+
+
         island_area_lst.append(find_largest_void(new_frame, find_void = False))
         island_position_lst.append(largest_island_position(new_frame))
         connected_lst.append(check_span(new_frame))
+        void_lst.append(find_largest_void(new_frame, True))
         
         labeled, a = label(new_frame, connectivity = 2, return_num =True) # identify the regions of connectivity 2
 
@@ -144,21 +146,19 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
     if i % step != 0:
         new_image = binarize(image[i])
         new_frame = groupAvg(new_image, 2)
-#         new_image = image[i][xindices][:,yindices]
-#         new_frame = binarize(new_image, threshold)
         
         if i in save_spots and return_graphs:
             compare_fig, comp_axs = plt.subplots(2, figsize=(10, 5))
             comp_axs[0].imshow(new_image)
             comp_axs[1].imshow(new_frame)
-            plt.save(os.path.join(name, 'Binarization Frame ' + str(i) + ' Comparison.png'))
+            plt.savefig(os.path.join(name, 'Binarization Frame ' + str(i) + ' Comparison.png'))
         
         if save_intermediates:
             csvwriter.writerow([str(i)])
             csvwriter.writerows(new_frame)
             csvwriter.writerow([])
         
-        void_lst.append(find_largest_void(new_frame))
+        void_lst.append(find_largest_void(new_frame, True))
         island_area_lst.append(find_largest_void(new_frame, find_void = False))
         island_position_lst.append(largest_island_position(new_frame))
         connected_lst.append(check_span(new_frame))
@@ -207,7 +207,6 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
     ax.set_xlabel("Frames")
     ax.set_ylabel("Fraction")
 
-
     downsample = 2
     
     img_dims = image[0].shape[0] * image[0].shape[1] / (downsample ** 2)
@@ -231,5 +230,4 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
     
     spanning = len([con for con in connected_lst if con == 1])/len(connected_lst)
 
-    
     return fig, max_void_size, spanning, island_size, average_direction, avg_void_percent_change, avg_island_percent_change

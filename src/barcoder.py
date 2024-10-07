@@ -1,8 +1,8 @@
 from reader import read_file
 import os, csv, sys, yaml, time, functools, builtins
-from resilience_tracker import check_resilience
-from flow_tracker import check_flow
-from coarse_tracker import check_coarse
+from binarization import check_resilience
+from flow import check_flow
+from intensity_distribution_comparison import check_coarse
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -64,9 +64,9 @@ def execute_htp(filepath, config_data, fail_file_loc):
             void_growth = None
             island_growth = None
         if flow == True:
-            downsample, frame_step, frame_interval, nm_pix_ratio = flow_data.values()
+            downsample, frame_step, frame_interval, nm_pix_ratio, win_size = flow_data.values()
             try:
-                direct, directSD, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose)
+                direct, directSD, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose, int(win_size))
             except Exception as e:
                 with open(fail_file_loc, "a", encoding="utf-8") as log_file:
                     log_file.write(f"File: {file_path}, Module: Optical Flow, Exception: {str(e)}\n")

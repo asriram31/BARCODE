@@ -58,6 +58,8 @@ def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
         gen_combined_barcode(csv_data_2, combined_barcode_loc, normalize_data)
 
 def gen_combined_barcode(data, figpath, normalize_data = True):
+    if len(data.shape) == 1:
+        data = np.reshape(data, (1, data.shape[0]))
     channels = data[:,0]
     unique_channels = np.unique(channels)
     flags = data[:,1]

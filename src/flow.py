@@ -29,19 +29,16 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Flow Testing')
-    #Cutoff magnitude to consider a vector to be null; also helps to avoid divide-by-zero errors
-    flt_tol = 1e-10
-    def execute_opt_flow(images, start, stop, divs, dirMeans, dirSDs, vxMeans, vyMeans, speeds, pos, xindices, yindices, save_intermediates, writer):
+    def execute_opt_flow(images, start, stop, divs, dirMeans, dirSDs, vxMeans, vyMeans, speeds, pos, save_intermediates, writer):
         flow = cv.calcOpticalFlowFarneback(images[start], images[stop], None, 0.5, 3, winsize, 3, 5, 1.2, 0)
-        divs = np.append(divs, divergence_npgrad(flow))
-        
-        downU = groupAvg(flow[:,:,0], downsample, False)
-        downV = groupAvg(flow[:,:,1], downsample, False)
+        flow_reduced = groupAvg(flow, downsample, False)
+        divs = np.append(divs, divergence_npgrad(flow_reduced))
+        downU = flow_reduced[:,:,0]
+        downV = flow_reduced[:,:,1]
         downU = np.flipud(downU)
         downV = np.flipud(downV)
 
         directions = np.arctan2(downV, downU)
-        dirMean = directions.mean()
         if save_intermediates:
             writer.writerow(["Flow Field (" + str(beg) + "-" + str(end) + ")"])
             writer.writerow(["X-Direction"])
@@ -81,9 +78,6 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
     if (images == 0).all():
        return [None] * 5
 
-    xindices = np.arange(0, images[0].shape[0], downsample)
-    yindices = np.arange(0, images[0].shape[1], downsample)
-
     #For each consecutive pair
     pos = 0
     dirMeans = np.array([])
@@ -102,13 +96,13 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
     
     for beg in range(0, end_point, frame_stride):
         end = beg + frame_stride
-        arr = execute_opt_flow(images, beg, end, divs, dirMeans, dirSDs, vxMeans, vyMeans, speeds, pos, xindices, yindices, save_intermediates, csvwriter)
+        arr = execute_opt_flow(images, beg, end, divs, dirMeans, dirSDs, vxMeans, vyMeans, speeds, pos, save_intermediates, csvwriter)
         dirMeans, dirSDs, vxMeans, vyMeans, speeds, divs = arr
         pos += 1
     if end_point != len(images) - 1:
         beg = end
         end = len(images) - 1
-        arr = execute_opt_flow(images, beg, end, divs, dirMeans, dirSDs, vxMeans, vyMeans, speeds, pos, xindices, yindices, save_intermediates, csvwriter)
+        arr = execute_opt_flow(images, beg, end, divs, dirMeans, dirSDs, vxMeans, vyMeans, speeds, pos, save_intermediates, csvwriter)
         dirMeans, dirSDs, vxMeans, vyMeans, speeds, divs = arr
 
     if save_intermediates:

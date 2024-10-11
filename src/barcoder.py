@@ -252,6 +252,8 @@ def process_directory(root_dir, config_data):
             for filename in filenames:
                 if filename.startswith('._'):
                     continue
+                # if not (filename.endswith(" - C=0.tif") or filename.endswith(" - C=1.tif")):
+                #     continue
                 file_path = os.path.join(dirpath, filename)
                 start_time = time.time()
                 try:

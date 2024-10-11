@@ -81,11 +81,6 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Coarsening Testing')
-    extrema_bounds_list = []
-    extrema_bounds_idx_list = []
-    areas_list = []
-    extrema_len_list = []
-    extrema_height_list = []
 
     im = file[:,:,:,channel]
 
@@ -99,8 +94,6 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     if (im == 0).all(): # If image is blank, then end program early
         return [None] * 8
     
-    ## If P(maximum piel intensity) >= 10 * pixel intensity of (max pix intensiyt - 1) -> saturation has occured, chop the histogram before then
-
     max_px_intensity = 1.1*np.max(im)
     min_px_intensity = np.min(im)
     bins_width = 3
@@ -111,20 +104,61 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     minimum_area = 0.010
     
     perc_increase = analyze_frames(name, im, frames_percent, save_intermediates)
+
+    def populate_intensity_array(video, first, last):
+        i_arr = []
+        dropped_frames = 0
+        inc = 1 if first < last else -1
+        frame_no = first
+        while len(i_arr) < np.abs(last - first):
+            if frame_no >= len(video) or frame_no < 0:
+                return None, None, None
+            frame = video[frame_no]
+            _, f_mode = calculate_mean_mode(frame)
+            f_max = np.max(frame)
+            while f_max == f_mode:
+                frame_no += inc
+                if frame_no >= len(video) or frame_no < 0:
+                    return None, None, None
+                frame = video[frame_no]
+                _, f_mode = calculate_mean_mode(frame)
+                f_max = np.max(frame)
+                dropped_frames += 1
+            i_arr.append(frame)
+            frame_no += inc
+        print(np.array(i_arr).shape)
+        return np.array(i_arr), dropped_frames, frame_no
     
-    i_frames_data = np.array([im[i] for i in range(first_frame, first_frame+num_frames_analysis)])
-    if last_frame == False or last_frame >= len(im): 
-        f_frames_data = np.array([im[-1-i] for i in range(num_frames_analysis)])
+    vprint("First Frames")
+    i_frames_data, i_dropped_frames, i_final_index = populate_intensity_array(im, first_frame, first_frame+num_frames_analysis)
+    # i_frames_data = np.array([im[i] for i in range(first_frame, first_frame+num_frames_analysis)])
+    vprint("Final Frames")
+    if last_frame == False or last_frame >= len(im):
+        last_frame = len(im) - 1
+        f_frames_data, f_dropped_frames, f_final_index = populate_intensity_array(im, last_frame, last_frame - num_frames_analysis) 
+        # f_frames_data = np.array([im[-1-i] for i in range(num_frames_analysis)])
 
     else:
-        f_frames_data = np.array([im[last_frame - 1 - i] for i in range(num_frames_analysis)])
+        f_frames_data, f_dropped_frames, f_final_index = populate_intensity_array(im, last_frame, last_frame - num_frames_analysis)
+        # f_frames_data = np.array([im[last_frame - 1 - i] for i in range(num_frames_analysis)])
+    
+    if i_dropped_frames == None or f_dropped_frames == None:
+        vprint("Entire video saturated, unable to process")
+        return None, None, None, None, None, None, None, 2
 
+    # if not (isinstance(i_dropped_frames, int) and isinstance(f_dropped_frames, int)):
+    #     return None, None, None, None, None, None, None, 2
+
+    vprint(f"Number of dropped frames due to saturation: {i_dropped_frames + f_dropped_frames}; Range of Frames Explored: ({first_frame}, {i_final_index}) and ({f_final_index}, {last_frame})")
+    
     def calc_frame_metric(metric, data):
         mets = []
         for i in range(len(data)):
             met = metric(data[i].flatten())
             mets.append(met)
         return mets
+    
+    tot_frames_data = np.append(i_frames_data, f_frames_data, axis = 0)
 
     i_kurt = calc_frame_metric(kurtosis, i_frames_data)
     f_kurt = calc_frame_metric(kurtosis, f_frames_data)
@@ -142,15 +176,34 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
 
     kurt_diff = np.mean(np.array(f_kurt)) - np.mean(np.array(i_kurt))
     skew_diff = np.mean(np.array(f_skew)) - np.mean(np.array(i_skew))
-    
-    tot_frames_data = np.append(i_frames_data, f_frames_data)
-    
+        
+    # Calculates saturation with following metric: if P(I_max) > P(I_max - 5)
+    def saturation_check(frame):
+        _, mode_intensity = calculate_mean_mode(frame)
+        unique, counts = np.unique(frame, return_counts = True)
+        order_dict = dict(zip(unique, counts))
+        order = sorted(order_dict.items(), reverse = True)
+        # print(order[:10])
+        i_max = order[0] # Picks to the largest intensity value
+        # i_next_max = i_max[0] - 5
+        i_next_max = order[4] # Picks the fifth largest intensity value
+        p_i_max = i_max[1]
+        # p_i_next_max = (frame == i_next_max).sum()
+        p_i_mode = (frame == mode_intensity).sum()
+        p_i_next_max = i_next_max[1]
+        # if p_i_max > 0.50 * p_i_mode:
+            # print(p_i_max, p_i_mode)
+        return p_i_max > 0.50 * p_i_mode
+
+
+    # Checks for saturation: defined as if P(I_max) >  P(I_max - 5)
     for i, frame in enumerate(tot_frames_data): # Flags if one of the frames used for comparison is saturated
-        mean_int, mode_int = calculate_mean_mode(tot_frames_data[i])
-        if mean_int == mode_int:
+        if saturation_check(frame):
+            _, mode_intensity = calculate_mean_mode(frame)
+            # print(mode_intensity)
+            # print(i)
             flag = 2
-            break
-    
+
     if last_frame == False or last_frame >= len(im):
         last_frame = len(im) - 1
     

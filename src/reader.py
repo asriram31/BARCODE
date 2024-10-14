@@ -3,7 +3,7 @@ import imageio.v3 as iio
 import numpy as np
 from nd2reader import ND2Reader
 
-def read_file(file_path, accept_dim = False):
+def read_file(file_path, accept_dim = False, allow_large_files = True):
     print = functools.partial(builtins.print, flush=True)
     acceptable_formats = ('.tiff', '.tif', '.nd2')
     print(file_path)
@@ -15,9 +15,9 @@ def read_file(file_path, accept_dim = False):
 
     file_size = os.path.getsize(file_path)
     file_size_gb = file_size / (1024 ** 3)
-    # if file_size_gb > 5:
-    #     print("File size is too large -- this program does not process files larger than 5 GB.")
-    #     return None
+    if file_size_gb > 5 and not allow_large_files:
+        print("File size is too large -- this program does not process files larger than 5 GB.")
+        return None
 
     def check_first_frame_dim(file):
         min_intensity = np.min(file[0])

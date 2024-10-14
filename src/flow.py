@@ -72,7 +72,9 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
         vprint('Flow field frame step too large for video, dynamically adjusting, new frame step:', frame_stride)
         end_point = len(images) - frame_stride
 
-    positions = np.array([0, int(np.floor(len(images)/2)), end_point])
+    mid_point_arr = range(0, end_point, frame_stride)
+    mid_point = mid_point_arr[np.floor((len(mid_point_arr) - 1)/2)]
+    positions = np.array([0, mid_point, end_point])
 
     # Error Checking: Empty Images
     if (images == 0).all():
@@ -117,4 +119,4 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
     mean_vel = mean_vel * (1 / frame_stride) * nm_pix_ratio * (1 / frame_interval)
     mean_speed = mean_speed * (1 / frame_stride) * nm_pix_ratio * (1 / frame_interval)
     
-    return direct, directSD, mean_vel, mean_speed, mean_div
+    return [mean_vel, mean_speed, mean_div, direct, directSD]

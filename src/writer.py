@@ -4,7 +4,7 @@ import numpy as np
 
 def write_file(output_filepath, data):
     if data:
-        headers = ['Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 'Void Area Change', 'Island Area Change', 'Maximum Kurtosis', 'Maximum Skewness', 'Maximum Mean-Mode', 'Mean-Mode Difference', 'Kurtosis Difference', 'Skewness Difference', 'Mean Velocity', 'Mean Speed', 'Mean Divergence', 'Island Flow Direction', 'Mean Flow Direction', 'Standard Deviation of Flow Direction']
+        headers = ['Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 'Void Area Change', 'Island Area Change', 'Maximum Kurtosis', 'Maximum Skewness', 'Maximum Asymmetry', 'Kurtosis Difference', 'Skewness Difference', 'Asymmetry Difference', 'Mean Velocity', 'Mean Speed', 'Mean Divergence', 'Island Flow Direction', 'Mean Flow Direction', 'Standard Deviation of Flow Direction']
         with open(output_filepath, 'w', newline='', encoding="utf-8") as csvfile:
             csvwriter = csv.writer(csvfile)
             csvwriter.writerow(headers) # Write headers before the first filename
@@ -20,10 +20,10 @@ def write_file(output_filepath, data):
                     # Write an empty row
                     csvwriter.writerow([])
 
-def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
-    if gen_agg_barcode:
+def generate_aggregate_csv(filelist, csv_loc, gen_barcode, normalize):
+    if gen_barcode:
         combined_barcode_loc = os.path.join(os.path.dirname(csv_loc), 'aggregate_barcode')
-        headers = ['Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 'Void Area Change', 'Island Area Change', 'Maximum Kurtosis', 'Maximum Skewness', 'Maximum Mean-Mode', 'Mean-Mode Difference', 'Kurtosis Difference', 'Skewness Difference', 'Mean Velocity', 'Mean Speed', 'Mean Divergence', 'Island Flow Direction', 'Mean Flow Direction', 'Standard Deviation of Flow Direction']
+        headers = ['Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 'Void Area Change', 'Island Area Change', 'Maximum Kurtosis', 'Maximum Skewness', 'Maximum Asymmetry', 'Kurtosis Difference', 'Skewness Difference', 'Asymmetry Difference', 'Mean Velocity', 'Mean Speed', 'Mean Divergence', 'Island Flow Direction', 'Mean Flow Direction', 'Standard Deviation of Flow Direction']
     f = open(csv_loc, 'w', encoding="utf-8") # Clears the CSV file if it already exists, and creates it if it does not
     csv_writer = csv.writer(f)
     csv_writer.writerow(headers)
@@ -35,7 +35,7 @@ def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
         if not csv_list:
             return None
         for csv_file in csv_list:
-            with open(csv_file, 'r') as fread, open(combined_csv_loc, 'a', encoding="utf-8") as fwrite:
+            with open(csv_file, 'r') as fread, open(csv_loc, 'a', encoding="utf-8") as fwrite:
                 csv_reader = csv.reader(fread)
                 csv_writer = csv.writer(fwrite)
                 next(csv_reader, None)
@@ -51,11 +51,11 @@ def generate_aggregate_csv(filelist, csv_loc, gen_agg_barcode, normalize):
                     csv_writer.writerow(row)
         return csv_data
 
-    csv_data = combine_csvs(files)
+    csv_data = combine_csvs(filelist)
     
     if gen_barcode:
         csv_data_2 = csv_data[1:]
-        gen_combined_barcode(csv_data_2, combined_barcode_loc, normalize_data)
+        gen_combined_barcode(csv_data_2, combined_barcode_loc, normalize)
 
 def gen_combined_barcode(data, figpath, normalize_data = True):
     if len(data.shape) == 1:
@@ -69,7 +69,7 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
     connected_lim = [0, 1] # Limit on the percentage of frames that are connected
     bin_size_lim = [0, 1]  # Size limit for void and island size
     bin_growth_lim = [0, 5] # Limits for the expected growth of the void or island
-    c_lim = [0, 10] # Limit on the percentage of mean-mode difference thresholding
+    c_lim = [0, 10] # Limit on the percentage of asymmetry difference thresholding
     kurt_lim = [-10, 10] # Limit on the kurtosis
     skew_lim = [-10, 10] # Limit on the skewness
     avg_vel_lim = [0, 10] # Limit for the average velocity (pixels/sec)
@@ -77,7 +77,7 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
     avg_div = [-1, 1] # Limit for divergence metric (-1 is pure contraction, 1 is pure expansion)
     direct_lim = [-np.pi, np.pi] # Limits on the direction of the island and flow (radians)
     
-    limits = [connected_lim, bin_size_lim, bin_size_lim, bin_growth_lim, bin_growth_lim, kurt_lim, skew_lim, c_lim, c_lim, kurt_lim, skew_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim, direct_lim]
+    limits = [connected_lim, bin_size_lim, bin_size_lim, bin_growth_lim, bin_growth_lim, kurt_lim, skew_lim, c_lim, kurt_lim, skew_lim, c_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim, direct_lim]
 
     if normalize_data:
         for i in range(17):
@@ -112,7 +112,7 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
         barcode_image = np.repeat(channel_agg_barcode, 5, axis=0)  # Adjust the repetition factor as needed
     
         # Plot the stitched barcodes
-        ax.imshow(channel_agg_barcode, aspect='auto')
+        ax.imshow(barcode_image, aspect='auto')
         ax.axis('off')  # Turn off the axis
         
         # Save or show the figure

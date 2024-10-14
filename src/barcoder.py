@@ -44,67 +44,39 @@ def execute_htp(filepath, config_data, fail_file_loc):
             f_step = resilience_data['frame_step']
             f_start, f_stop = resilience_data['evaluation_settings'].values()
             try:
-                rfig, void_value, spanning, island_size, island_movement, void_growth, island_growth = check_resilience(file, fig_channel_dir_name, channel, r_offset, f_step, f_start, f_stop, return_graphs, save_intermediates, verbose)
+                rfig, binarization_outputs = check_resilience(file, fig_channel_dir_name, channel, r_offset, f_step, f_start, f_stop, return_graphs, save_intermediates, verbose)
             except Exception as e:
                 with open(fail_file_loc, "a", encoding="utf-8") as log_file:
                     log_file.write(f"File: {file_path}, Module: Binarization, Exception: {str(e)}\n")
                 rfig = None
-                spanning = None
-                void_value = None
-                island_size = None
-                island_movement = None
-                void_growth = None
-                island_growth = None
+                binarization_outputs = [None] * 6
         else:
             rfig = None
-            spanning = None
-            void_value = None
-            island_size = None
-            island_movement = None
-            void_growth = None
-            island_growth = None
+            binarization_outputs = [None] * 6
         if flow == True:
             downsample, frame_step, frame_interval, nm_pix_ratio, win_size = flow_data.values()
             try:
-                direct, directSD, avg_vel, avg_speed, avg_div = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose, int(win_size))
+                flow_outputs = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose, int(win_size))
             except Exception as e:
                 with open(fail_file_loc, "a", encoding="utf-8") as log_file:
                     log_file.write(f"File: {file_path}, Module: Optical Flow, Exception: {str(e)}\n")
-                direct = None
-                directSD = None
-                avg_vel = None
-                avg_speed = None
-                avg_div = None
+                flow_outputs = [None] * 5
         else:
-            direct = None
-            directSD = None
-            avg_vel = None
-            avg_speed = None
-            avg_div = None
+            flow_outputs = [None] * 5
         if coarse == True:
             fframe, lframe = coarse_data['evaluation_settings'].values()
             percent_frames = coarse_data['mean_mode_frames_percent']
             try:
-                perc_increase, cfig, max_kurt, max_skew, max_mean_mode, kurt_diff, skew_diff, flag = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, percent_frames, save_intermediates, verbose)
+                cfig, id_outputs, flag = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, percent_frames, save_intermediates, verbose)
             except Exception as e:
                 with open(fail_file_loc, "a", encoding="utf-8") as log_file:
                     log_file.write(f"File: {file_path}, Module: Intensity Distribution, Exception: {str(e)}\n")
-                perc_increase = None
                 cfig = None
-                max_kurt = None
-                max_skew = None 
-                max_mean_mode = None
-                kurt_diff = None
-                skew_diff = None
+                id_outputs = [None] * 6
                 flag = None
         else:
-            perc_increase = None
             cfig = None
-            max_kurt = None
-            max_skew = None 
-            max_mean_mode = None
-            kurt_diff = None
-            skew_diff = None
+            id_outputs = [None] * 6
             flag = None
 
         figpath = os.path.join(fig_channel_dir_name, 'Summary Graphs.png')
@@ -130,8 +102,9 @@ def execute_htp(filepath, config_data, fail_file_loc):
             plt.close(fig)
         plt.close('all')
 
-        result = [channel, spanning, island_size, void_value, void_growth, island_growth, max_kurt, max_skew, max_mean_mode, perc_increase, kurt_diff, skew_diff, avg_vel, avg_speed, avg_div, island_movement, direct, directSD]
-        result.insert(1, flag)
+        result = [channel] + [flag] + binarization_outputs + id_outputs + flow_outputs
+        island_movement = result.pop(6)
+        result.insert(15, island_movement)
         
         vprint('Channel Screening Completed')
             
@@ -146,7 +119,6 @@ def execute_htp(filepath, config_data, fail_file_loc):
     channels = min(file.shape)
     
     rfc = []
-    barcodes = []
     if channel_select == 'All':
         vprint('Total Channels:', channels)
         for channel in range(channels):
@@ -252,8 +224,13 @@ def process_directory(root_dir, config_data):
             for filename in filenames:
                 if filename.startswith('._'):
                     continue
+                # Code for PNAS Nexus Dataset
                 # if not (filename.endswith(" - C=0.tif") or filename.endswith(" - C=1.tif")):
                 #     continue
+
+                # Code for Alvarado Dataset
+                if not filename.endswith("actin.tif"):
+                    continue
                 file_path = os.path.join(dirpath, filename)
                 start_time = time.time()
                 try:
@@ -279,11 +256,22 @@ def process_directory(root_dir, config_data):
                 time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
         
         output_filepath = os.path.join(root_dir, os.path.basename(root_dir) + " Summary.csv")
-        write_file(output_filepath, all_data)
+        try:
+            write_file(output_filepath, all_data)
+        except:
+            counter = 1
+            output_filepath = os.path.join(root_dir, os.path.basename(root_dir) + f" Summary ({counter}).csv")
+            while os.path.exists(output_filepath):
+                counter += 1
+            write_file(output_filepath, all_data)
         
         if stitch_barcode:
-            output_figpath = os.path.join(root_dir, os.path.basename(root_dir) + '_Summary Barcode')
-            gen_combined_barcode(np.array(all_rfc_data), output_figpath, normalize_data)
+            try:
+                output_figpath = os.path.join(root_dir, os.path.basename(root_dir) + '_Summary Barcode')
+                gen_combined_barcode(np.array(all_rfc_data), output_figpath, normalize_data)
+            except Exception as e:
+                with open(ff_loc, "a", encoding="utf-8") as log_file:
+                    log_file.write(f"Unable to generate barcode, Exception: {str(e)}\n")
 
         end_folder_time = time.time()
         elapsed_folder_time = end_folder_time - start_folder_time

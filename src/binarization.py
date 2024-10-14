@@ -110,8 +110,11 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
     connected_lst = []
     region_lst = []
     
-    save_spots = np.linspace(0, len(image), 3)
-    
+    mid_point_arr = range(0, len(image), step)
+    mid_point = mid_point_arr[np.floor((len(mid_point_arr) - 1)/2)]
+
+    save_spots = np.array([0, mid_point, len(image)])
+
     for i in range(0, len(image), step):
         new_image = binarize(image[i])
         new_frame = groupAvg(new_image, 2)
@@ -215,7 +218,7 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
     max_void_size = top_ten_average(largest_void_lst)/img_dims
     
     avg_island_percent_change = np.mean(island_area_lst[start_index:stop_index])/island_gain_initial_list
-    island_size = top_ten_average(island_area_lst)/img_dims
+    max_island_size = top_ten_average(island_area_lst)/img_dims
     if len(np.array(island_position_lst).shape) != 2:
         average_direction = 0
     else:
@@ -230,4 +233,4 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
     
     spanning = len([con for con in connected_lst if con == 1])/len(connected_lst)
 
-    return fig, max_void_size, spanning, island_size, average_direction, avg_void_percent_change, avg_island_percent_change
+    return fig, [spanning, max_island_size, max_void_size, avg_void_percent_change, avg_island_percent_change, average_direction]

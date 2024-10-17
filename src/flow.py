@@ -46,6 +46,10 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
             writer.writerow(["Y-Direction"])
             writer.writerows(downV)
         speed = (downU ** 2 + downV ** 2) ** (1/2)
+
+        mid_point_arr = range(0, end_point, frame_stride)
+        mid_point = mid_point_arr[int((len(mid_point_arr) - 1)/2)]
+        positions = np.array([0, mid_point, end_point])
         if np.isin(beg, positions) and return_graphs:
             fig, ax = plt.subplots(figsize=(10,10))
             q = ax.quiver(downU, downV, color='blue')
@@ -71,10 +75,6 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
         frame_stride = int(np.ceil(frame_stride / 5))
         vprint('Flow field frame step too large for video, dynamically adjusting, new frame step:', frame_stride)
         end_point = len(images) - frame_stride
-
-    mid_point_arr = range(0, end_point, frame_stride)
-    mid_point = mid_point_arr[np.floor((len(mid_point_arr) - 1)/2)]
-    positions = np.array([0, mid_point, end_point])
 
     # Error Checking: Empty Images
     if (images == 0).all():

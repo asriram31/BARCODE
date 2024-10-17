@@ -147,10 +147,10 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     i_mean = np.mean(i_frame)
     f_mean = np.mean(f_frame)
     
-    ax.plot(plt_bins, i_count, '^-', ms=4, c='darkred', alpha=0.2, label= "frame " + str(first_frame+1)+" dist")
-    ax.plot(plt_bins, f_count, 'v-', ms=4, c='purple',   alpha=0.2, label= "frame " + str(last_frame+1)+" dist")
-    ax.axvline(x=i_mean, ms = 4, c = 'darkred', alpha=0.6, label="frame " + str(first_frame+1)+" mean")
-    ax.axvline(x=f_mean, ms = 4, c = 'purple', alpha=0.6, label="frame " + str(last_frame+1)+" mean")
+    ax.plot(plt_bins[::10], i_count[::10], '^-', ms=4, c='darkred', alpha=0.6, label= "Frame " + str(first_frame)+" Intensity Distribution")
+    ax.plot(plt_bins[::10], f_count[::10], 'v-', ms=4, c='purple',   alpha=0.6, label= "Frame " + str(last_frame)+" Intensity Distribution")
+    ax.axvline(x=i_mean, ms = 4, c = 'darkred', alpha=1, label="Frame " + str(first_frame)+" Mean")
+    ax.axvline(x=f_mean, ms = 4, c = 'purple', alpha=1, label="Frame " + str(last_frame)+" Mean")
 
     ax.axhline(0, color='dimgray', alpha=0.6)
     ax.set_xlabel("Pixel intensity value")

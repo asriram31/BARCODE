@@ -111,7 +111,7 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
     region_lst = []
     
     mid_point_arr = range(0, len(image), step)
-    mid_point = mid_point_arr[np.floor((len(mid_point_arr) - 1)/2)]
+    mid_point = mid_point_arr[int((len(mid_point_arr) - 1)/2)]
 
     save_spots = np.array([0, mid_point, len(image)])
 
@@ -202,13 +202,14 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
     start_index = 0
     plot_range = np.arange(start_index * frame_step, stop_index * frame_step, frame_step)
     plot_range[-1] = len(image) - 1 if stop_index * frame_step >= len(image) else stop_index * frame_step
-    ax.plot(plot_range, void_percent_gain_list[start_index:stop_index], c='b', label='Original Void Size Proportion')
-    ax.plot(plot_range, island_percent_gain_list[start_index:stop_index], c='r', label='Original Island Size Proportion')
-    ax.set_xticks(plot_range)
+    ax.plot(plot_range, 100 * void_percent_gain_list[start_index:stop_index], c='b', label='Original Void Size Proportion')
+    ax.plot(plot_range, 100 * island_percent_gain_list[start_index:stop_index], c='r', label='Original Island Size Proportion')
+    ax.set_xticks(plot_range[::10])
     if stop_index * frame_step >= len(image) != 0:
         ax.set_xlim(left=None, right=len(image) - 1)
     ax.set_xlabel("Frames")
-    ax.set_ylabel("Fraction")
+    ax.set_ylabel("Percentage of Original Size")
+    ax.legend()
 
     downsample = 2
     

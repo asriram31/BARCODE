@@ -103,7 +103,7 @@ def execute_htp(filepath, config_data, fail_file_loc):
         plt.close('all')
 
         result = [channel] + [flag] + binarization_outputs + id_outputs + flow_outputs
-        island_movement = result.pop(6)
+        island_movement = result.pop(7)
         result.insert(15, island_movement)
         
         vprint('Channel Screening Completed')
@@ -229,8 +229,8 @@ def process_directory(root_dir, config_data):
                 #     continue
 
                 # Code for Alvarado Dataset
-                if not filename.endswith("actin.tif"):
-                    continue
+                # if not filename.endswith("actin.tif"):
+                #     continue
                 file_path = os.path.join(dirpath, filename)
                 start_time = time.time()
                 try:

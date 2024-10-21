@@ -9,6 +9,25 @@ import os, math, csv, functools, builtins
 import matplotlib.ticker as ticker
 import statistics
 
+def divergence_npgrad(flow):
+    mag, ang = cv.cartToPolar(flow[:,:,0], flow[:,:,1])
+    # Recall: divergence in radial coordinates of A is 1/r d/dr(r A_r) + 1/r d/d0 (A_0)
+    grad_mag_y, grad_mag_x = np.gradient(mag)
+    grad_ang_y, grad_ang_x = np.gradient(ang)
+
+    height, width = mag.shape
+    x = np.linspace(0, width - 1, width)
+    y = np.linspace(0, height - 1, height)
+    X, Y = np.meshgrid(x, y)
+    r = np.sqrt((X - width // 2) ** 2 + (Y - height // 2) ** 2)
+    r[r == 0] = 1e-5
+
+    rad_div = 1/r * (grad_mag_x * (X - width // 2) / r + grad_mag_y * (Y - height // 2) / r)
+    ang_div = 1/r * (grad_ang_x * (X - width // 2) / r + grad_ang_y * (Y - height // 2) / r)
+
+    return rad_div + ang_div
+
+
 def groupAvg(arr, N, bin_mask=True):
     result = np.cumsum(arr, 0)[N-1::N]/float(N)
     result = np.cumsum(result, 1)[:,N-1::N]/float(N)
@@ -17,13 +36,6 @@ def groupAvg(arr, N, bin_mask=True):
     if bin_mask:
         result = np.where(result > 0, 1, 0)
     return result
-
-def divergence_npgrad(flow):
-    flow = np.swapaxes(flow, 0, 1)
-    Fx, Fy = flow[:, :, 0], flow[:, :, 1]
-    dFx_dx = np.gradient(Fx, axis=0)
-    dFy_dy = np.gradient(Fy, axis=1)
-    return dFx_dx + dFy_dy
 
 def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose, winsize = 16):
     print = functools.partial(builtins.print, flush=True)

@@ -75,7 +75,7 @@ def check_span(frame):
     return (check_connected(frame, axis = 0) or check_connected(frame, axis = 1))
 
 def track_void(image, name, threshold, step, return_graphs, save_intermediates):
-    def find_largest_void(frame, find_void):      
+    def find_largest_void(frame, find_void, num=1):      
         if find_void:
             eval_frame = inv(frame)
         else:
@@ -88,8 +88,14 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
         if not regions:
             return frame.shape[0] * frame.shape[1]
         
-        largest_region = max(regions, key = lambda r: r.area) # determines the region with the maximum area
-        return largest_region.area # returns largest region area
+        regions_sorted = sorted(regions, key = lambda r: r.area, reverse = True)
+        largest_regions = regions_sorted[0:num]
+        areas = [region.area for region in largest_regions]
+        if num != len(areas):
+            areas.append(0)
+        return areas # returns largest region(s) area
+    
+
 
     def largest_island_position(frame):      
         labeled, a = label(frame, connectivity = 2, return_num =True) # identify the regions of connectivity 2
@@ -106,6 +112,7 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
         
     void_lst = []
     island_area_lst = []
+    island_area_lst2 = []
     island_position_lst = []
     connected_lst = []
     region_lst = []
@@ -134,11 +141,11 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
             csvwriter.writerows(new_frame)
             csvwriter.writerow([])
 
-
-        island_area_lst.append(find_largest_void(new_frame, find_void = False))
+        island_area_lst.append(find_largest_void(new_frame, find_void = False)[0])
+        island_area_lst2.append(find_largest_void(new_frame, find_void = False, num = 2)[1])
         island_position_lst.append(largest_island_position(new_frame))
         connected_lst.append(check_span(new_frame))
-        void_lst.append(find_largest_void(new_frame, True))
+        void_lst.append(find_largest_void(new_frame, True)[0])
         
         labeled, a = label(new_frame, connectivity = 2, return_num =True) # identify the regions of connectivity 2
 
@@ -161,15 +168,16 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
             csvwriter.writerows(new_frame)
             csvwriter.writerow([])
         
-        void_lst.append(find_largest_void(new_frame, True))
-        island_area_lst.append(find_largest_void(new_frame, find_void = False))
+        island_area_lst.append(find_largest_void(new_frame, find_void = False)[0])
+        island_area_lst2.append(find_largest_void(new_frame, find_void = False, num = 2)[1])
         island_position_lst.append(largest_island_position(new_frame))
         connected_lst.append(check_span(new_frame))
+        void_lst.append(find_largest_void(new_frame, True)[0])
 
     if save_intermediates:
         f.close()
 
-    return void_lst, island_area_lst, island_position_lst, connected_lst, region_lst
+    return void_lst, island_area_lst, island_area_lst2, connected_lst
 
 def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame_start_percent = 0.9, frame_stop_percent = 1, return_graphs = False, save_intermediates = False, verbose = True):
     print = functools.partial(builtins.print, flush=True)
@@ -188,16 +196,17 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
     while len(image) <= frame_step:
         frame_step = frame_step / 5
     
-    largest_void_lst, island_area_lst, island_position_lst, connected_lst, r_lst = track_void(image, name, R_offset, frame_step, return_graphs, save_intermediates)
+    largest_void_lst, island_area_lst, island_area_lst2, connected_lst = track_void(image, name, R_offset, frame_step, return_graphs, save_intermediates)
     start_index = int(np.floor(len(image) * frame_start_percent / frame_step))
     stop_index = int(np.ceil(len(largest_void_lst) * frame_stop_percent))
     start_initial_index = int(np.ceil(len(image)*frame_initial_percent / frame_step))
 
-    void_gain_initial_list = np.mean(largest_void_lst[0:start_initial_index])
-    void_percent_gain_list = np.array(largest_void_lst)/void_gain_initial_list
+    void_size_initial = np.mean(largest_void_lst[0:start_initial_index])
+    void_percent_gain_list = np.array(largest_void_lst)/void_size_initial
     
-    island_gain_initial_list = np.mean(island_area_lst[0:start_initial_index])
-    island_percent_gain_list = np.array(island_area_lst)/island_gain_initial_list
+    island_size_initial = np.mean(island_area_lst[0:start_initial_index])
+    island_size_initial2 = np.mean(island_area_lst2[0:start_initial_index])
+    island_percent_gain_list = np.array(island_area_lst)/island_size_initial
     
     start_index = 0
     plot_range = np.arange(start_index * frame_step, stop_index * frame_step, frame_step)
@@ -215,23 +224,15 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
     
     img_dims = image[0].shape[0] * image[0].shape[1] / (downsample ** 2)
     
-    avg_void_percent_change = np.mean(largest_void_lst[start_index:stop_index])/void_gain_initial_list
+    avg_void_percent_change = np.mean(largest_void_lst[start_index:stop_index])/void_size_initial
+    void_size_initial = void_size_initial / img_dims
     max_void_size = top_ten_average(largest_void_lst)/img_dims
     
-    avg_island_percent_change = np.mean(island_area_lst[start_index:stop_index])/island_gain_initial_list
+    avg_island_percent_change = np.mean(island_area_lst[start_index:stop_index])/island_size_initial
+    island_size_initial = island_size_initial / img_dims
+    island_size_initial2 = island_size_initial2 / img_dims
     max_island_size = top_ten_average(island_area_lst)/img_dims
-    if len(np.array(island_position_lst).shape) != 2:
-        average_direction = 0
-    else:
-        island_movement = np.array(island_position_lst)[:-1,:] - np.array(island_position_lst)[1:,:]
-        island_speed = np.linalg.norm(island_movement,axis = 1)
-        island_direction = np.arctan2(island_movement[:,1],island_movement[:,0])
-        thresh_speed = 15
-        while len(island_direction[np.where(island_speed < thresh_speed)]) == 0:
-            thresh_speed += 1
-        island_direction = island_direction[np.where(island_speed < thresh_speed)]
-        average_direction = np.average(island_direction)
-    
+        
     spanning = len([con for con in connected_lst if con == 1])/len(connected_lst)
 
-    return fig, [spanning, max_island_size, max_void_size, avg_void_percent_change, avg_island_percent_change, average_direction]
+    return fig, [spanning, max_island_size, max_void_size, avg_void_percent_change, avg_island_percent_change, island_size_initial, island_size_initial2]

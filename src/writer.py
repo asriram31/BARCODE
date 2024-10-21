@@ -4,7 +4,13 @@ import numpy as np
 
 def write_file(output_filepath, data):
     if data:
-        headers = ['Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 'Void Area Change', 'Island Area Change', 'Maximum Kurtosis', 'Maximum Skewness', 'Maximum Asymmetry', 'Kurtosis Difference', 'Skewness Difference', 'Asymmetry Difference', 'Mean Velocity', 'Mean Speed', 'Mean Divergence', 'Island Flow Direction', 'Mean Flow Direction', 'Standard Deviation of Flow Direction']
+        headers = [
+            'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
+            'Void Area Change', 'Island Area Change', 'Initial Island Area', 
+            'Initial Second Island Area', 'Maximum Kurtosis', 'Maximum Skewness', 
+            'Maximum Asymmetry', 'Kurtosis Difference', 'Skewness Difference', 
+            'Asymmetry Difference', 'Mean Velocity', 'Mean Speed', 'Mean Divergence', 
+            'Mean Flow Direction', 'Standard Deviation of Flow Direction']
         with open(output_filepath, 'w', newline='', encoding="utf-8") as csvfile:
             csvwriter = csv.writer(csvfile)
             csvwriter.writerow(headers) # Write headers before the first filename
@@ -23,7 +29,13 @@ def write_file(output_filepath, data):
 def generate_aggregate_csv(filelist, csv_loc, gen_barcode, normalize):
     if gen_barcode:
         combined_barcode_loc = os.path.join(os.path.dirname(csv_loc), 'aggregate_barcode')
-        headers = ['Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 'Void Area Change', 'Island Area Change', 'Maximum Kurtosis', 'Maximum Skewness', 'Maximum Asymmetry', 'Kurtosis Difference', 'Skewness Difference', 'Asymmetry Difference', 'Mean Velocity', 'Mean Speed', 'Mean Divergence', 'Island Flow Direction', 'Mean Flow Direction', 'Standard Deviation of Flow Direction']
+        headers = [
+            'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
+            'Void Area Change', 'Island Area Change', 'Initial Island Area', 
+            'Initial Second Island Area', 'Maximum Kurtosis', 'Maximum Skewness', 
+            'Maximum Asymmetry', 'Kurtosis Difference', 'Skewness Difference', 
+            'Asymmetry Difference', 'Mean Velocity', 'Mean Speed', 'Mean Divergence', 
+            'Mean Flow Direction', 'Standard Deviation of Flow Direction']
     f = open(csv_loc, 'w', encoding="utf-8") # Clears the CSV file if it already exists, and creates it if it does not
     csv_writer = csv.writer(f)
     csv_writer.writerow(headers)
@@ -31,7 +43,7 @@ def generate_aggregate_csv(filelist, csv_loc, gen_barcode, normalize):
     
     def combine_csvs(csv_list):
         filenames = []
-        csv_data = np.zeros(shape=(19))
+        csv_data = np.zeros(shape=(20))
         if not csv_list:
             return None
         for csv_file in csv_list:
@@ -63,7 +75,7 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
     channels = data[:,0]
     unique_channels = np.unique(channels)
     flags = data[:,1]
-    all_entries = [data[:,i] for i in range(2, 19)]
+    all_entries = [data[:,i] for i in range(2, 20)]
 
     # Define normalization limits of floating point values
     connected_lim = [0, 1] # Limit on the percentage of frames that are connected
@@ -77,13 +89,14 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
     avg_div = [-1, 1] # Limit for divergence metric (-1 is pure contraction, 1 is pure expansion)
     direct_lim = [-np.pi, np.pi] # Limits on the direction of the island and flow (radians)
     
-    limits = [connected_lim, bin_size_lim, bin_size_lim, bin_growth_lim, bin_growth_lim, kurt_lim, skew_lim, c_lim, kurt_lim, skew_lim, c_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim, direct_lim]
+    limits = [connected_lim, bin_size_lim, bin_size_lim, bin_growth_lim, bin_growth_lim, bin_size_lim, bin_size_lim, kurt_lim, skew_lim, c_lim, kurt_lim, skew_lim, c_lim, avg_vel_lim, avg_speed_lim, avg_div, direct_lim, direct_lim]
 
     if normalize_data:
-        for i in range(17):
+        for i in range(18):
             if all(v is None for v in all_entries[i]):
                 continue
-            limits[i] = [np.min(all_entries[i]), np.max(all_entries[i])]
+            entries = [x for x in all_entries if x != np.nan]
+            limits[i] = [np.min(entries[i]), np.max(entries[i])]
     colormap = plt.get_cmap('plasma')  # Colormap for floats
 
     def normalize(x, min_float, max_float):
@@ -96,7 +109,7 @@ def gen_combined_barcode(data, figpath, normalize_data = True):
         filtered_channel_data = data[data[:,0] == channel]
         channel_agg_barcode = [None] * len(filtered_channel_data)
         for row in range(len(filtered_channel_data)):
-            barcode = [None] * 17
+            barcode = [None] * 18
             for idx in range(len(all_entries)):
                 value = filtered_channel_data[row, 2 + idx]
                 lims = limits[idx]

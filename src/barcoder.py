@@ -222,12 +222,12 @@ def process_directory(root_dir, config_data):
                 if filename.startswith('._'):
                     continue
                 # Code for PNAS Nexus Dataset
-                # if not (filename.endswith(" - C=0.tif") or filename.endswith(" - C=1.tif")):
-                #     continue
+                if not (filename.endswith(" - C=0.tif") or filename.endswith(" - C=1.tif")):
+                    continue
 
                 # Code for Alvarado Dataset
-                if not filename.endswith("actin.tif"):
-                    continue
+                # if not filename.endswith("actin.tif"):
+                #     continue
                 file_path = os.path.join(dirpath, filename)
                 start_time = time.time()
                 try:

@@ -25,7 +25,6 @@ def execute_htp(filepath, config_data, fail_file_loc):
     r_data = config_data['resilience_parameters']
     f_data = config_data['flow_parameters']
     c_data = config_data['coarse_parameters']
-    stitch_barcode = config_data['writer']['stitch_barcode']
     
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
@@ -49,10 +48,10 @@ def execute_htp(filepath, config_data, fail_file_loc):
                 with open(fail_file_loc, "a", encoding="utf-8") as log_file:
                     log_file.write(f"File: {file_path}, Module: Binarization, Exception: {str(e)}\n")
                 rfig = None
-                binarization_outputs = [None] * 6
+                binarization_outputs = [None] * 7
         else:
             rfig = None
-            binarization_outputs = [None] * 6
+            binarization_outputs = [None] * 7
         if flow == True:
             downsample, frame_step, frame_interval, nm_pix_ratio, win_size = flow_data.values()
             try:
@@ -60,9 +59,9 @@ def execute_htp(filepath, config_data, fail_file_loc):
             except Exception as e:
                 with open(fail_file_loc, "a", encoding="utf-8") as log_file:
                     log_file.write(f"File: {file_path}, Module: Optical Flow, Exception: {str(e)}\n")
-                flow_outputs = [None] * 5
+                flow_outputs = [None] * 4
         else:
-            flow_outputs = [None] * 5
+            flow_outputs = [None] * 4
         if coarse == True:
             fframe, lframe = coarse_data['evaluation_settings'].values()
             percent_frames = coarse_data['mean_mode_frames_percent']
@@ -130,7 +129,7 @@ def execute_htp(filepath, config_data, fail_file_loc):
                 
             else:
                 results = check(filepath, channel, resilience, flow, coarsening, r_data, f_data, c_data, fail_file_loc)
-                rfc.append(results)
+            rfc.append(results)
     
     else:
         while channel_select < 0:
@@ -149,8 +148,6 @@ def execute_htp(filepath, config_data, fail_file_loc):
     return rfc
 
 def remove_extension(filepath):
-    if filepath.endswith('.tiff'):
-        return filepath.removesuffix('.tiff')
     if filepath.endswith('.tif'):
         return filepath.removesuffix('.tif')
     if filepath.endswith('.nd2'):
@@ -159,7 +156,7 @@ def remove_extension(filepath):
 def process_directory(root_dir, config_data):
     verbose = config_data['reader']['verbose']
     writer_data = config_data['writer']
-    normalize_data, save_intermediates, stitch_barcode = writer_data.values()
+    normalize_data, _, stitch_barcode = writer_data.values()
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     
@@ -214,6 +211,12 @@ def process_directory(root_dir, config_data):
         start_folder_time = time.time()
         ff_loc = os.path.join(root_dir, "failed_files.txt")
         open(ff_loc, 'w').close()
+
+        files = next(os.walk(root_dir))[2]
+        files = [file for file in files if (file.endswith(".tif") or file.endswith(".nd2"))]
+        file_count = len(files)
+
+        file_itr = 1
         
         for dirpath, dirnames, filenames in os.walk(root_dir):
             dirnames[:] = [d for d in dirnames]
@@ -221,13 +224,9 @@ def process_directory(root_dir, config_data):
             for filename in filenames:
                 if filename.startswith('._'):
                     continue
-                # Code for PNAS Nexus Dataset
-                if not (filename.endswith(" - C=0.tif") or filename.endswith(" - C=1.tif")):
-                    continue
 
-                # Code for Alvarado Dataset
-                # if not filename.endswith("actin.tif"):
-                #     continue
+                vprint(f"File {file_itr} of {file_count}")
+
                 file_path = os.path.join(dirpath, filename)
                 start_time = time.time()
                 try:
@@ -251,6 +250,8 @@ def process_directory(root_dir, config_data):
                 vprint('Time Elapsed:', elapsed_time)
                 time_file.write(file_path + "\n")
                 time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
+
+                file_itr += 1
         
         output_filepath = os.path.join(root_dir, os.path.basename(root_dir) + " Summary.csv")
         try:

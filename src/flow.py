@@ -9,42 +9,56 @@ import os, math, csv, functools, builtins
 import matplotlib.ticker as ticker
 import statistics
 
-def divergence_npgrad(flow):
-    mag, ang = cv.cartToPolar(flow[:,:,0], flow[:,:,1])
-    # Recall: divergence in radial coordinates of A is 1/r d/dr(r A_r) + 1/r d/d0 (A_0)
-    grad_mag_y, grad_mag_x = np.gradient(mag)
-    grad_ang_y, grad_ang_x = np.gradient(ang)
+"""
+Takes an average downsampling of 2D array to go from array of dimension (x, y) to (x/N, y/N)
+@param arr: the input array of shape (x, y)
+@param N: the number to downsample the array
 
-    height, width = mag.shape
-    x = np.linspace(0, width - 1, width)
-    y = np.linspace(0, height - 1, height)
-    X, Y = np.meshgrid(x, y)
-    r = np.sqrt((X - width // 2) ** 2 + (Y - height // 2) ** 2)
-    r[r == 0] = 1e-5
-
-    rad_div = 1/r * (grad_mag_x * (X - width // 2) / r + grad_mag_y * (Y - height // 2) / r)
-    ang_div = 1/r * (grad_ang_x * (X - width // 2) / r + grad_ang_y * (Y - height // 2) / r)
-
-    return rad_div + ang_div
-
-
-def groupAvg(arr, N, bin_mask=True):
-    result = np.cumsum(arr, 0)[N-1::N]/float(N)
-    result = np.cumsum(result, 1)[:,N-1::N]/float(N)
+@return: an output array of shape (x/N, y/N)
+"""
+def groupAvg(arr, N):
+    result = np.cumsum(arr, 0)[N-1::N]/float(N) # Average all rows in array
+    result = np.cumsum(result, 1)[:,N-1::N]/float(N) # Average all columns in array
     result[1:] = result[1:] - result[:-1]
     result[:,1:] = result[:,1:] - result[:,:-1]
-    if bin_mask:
-        result = np.where(result > 0, 1, 0)
     return result
 
+"""
+Takes an input video file and uses flow fields between frames to extract metrics
+@param file: the input video file
+@param name: the name of the output directory folder for video intermediates + plots
+@param channel: the channel to analyze the video
+@param frame_stride: the interval (in frames) between flow fields
+@param downsample: controls the spatial downsampling rate of the flow fields; used to control noise
+@param frame_interval: the interval (in units of time) between frames (seconds/frame); used to convert to real units
+@param nm_pix_ratio: the ratio between nm to pixels; used to convert to real units
+@param return_graphs: controls whether sample flow fields are saved to output directory as images
+@param save_intermediates: controls whether all flow fields are saved as CSV file for further analysis
+@param verbose: controls the level of printed output to the GUI
+@param winsize: controls the window size for Farneback polynomial approximation
+
+@return: a list containing the average speed, change in speed, direction, and directional spread
+"""
 def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose, winsize = 16):
+    # Defines print to enable printing only if verbose setting set to True
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
     vprint('Beginning Flow Testing')
-    def execute_opt_flow(images, start, stop, divs, dirMeans, dirSDs, vxMeans, vyMeans, speeds, pos, save_intermediates, writer):
+
+    """
+    Calculates average speed, average direction, directional spread for each flow field
+    @param images
+    @param start
+    @param stop
+    @param pos
+    @param theta
+    @param sigma_theta
+    @param speeds
+    @param writer
+    """
+    def execute_opt_flow(images, start, stop, pos, thetas, sigma_thetas, speeds, writer):
         flow = cv.calcOpticalFlowFarneback(images[start], images[stop], None, 0.5, 3, winsize, 3, 5, 1.2, 0)
-        flow_reduced = groupAvg(flow, downsample, False)
-        divs = np.append(divs, divergence_npgrad(flow_reduced))
+        flow_reduced = groupAvg(flow, downsample)
         downU = flow_reduced[:,:,0]
         downV = flow_reduced[:,:,1]
         downU = np.flipud(downU)
@@ -71,16 +85,20 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
             ax.yaxis.set_major_formatter(ticks_adj)
             fig.savefig(figpath)
             plt.close(fig)
-
-        dirMeans = np.append(dirMeans, directions.mean())
-        dirSDs = np.append(dirSDs, np.std(directions))
-        vxMeans = np.append(vxMeans, downU.mean())
-        vyMeans = np.append(vyMeans, downV.mean())        
-        speeds = np.append(speeds, speed.mean())
-        return [dirMeans, dirSDs, vxMeans, vyMeans, speeds, divs]
+        
+        # Convert speed from pixels / interval to nm/sec
+        # Conversion: px/interval * interval/frame * sec/frame * nm/px
+        avg_speed = np.mean(speed) * 1/(frame_interval) * 1/(frame_stride) * nm_pix_ratio
+        thetas.append(np.mean(directions))
+        sigma_thetas.append(np.std(directions))
+        speeds.append(avg_speed)
+        return
 
 
     images = file[:,:,:,channel]
+    # Error Checking: Empty Images
+    if (images == 0).all():
+       return [None] * 4
 
     end_point = len(images) - frame_stride
     while end_point <= 0: # Checking to see if frame_stride is too large
@@ -88,47 +106,44 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
         vprint('Flow field frame step too large for video, dynamically adjusting, new frame step:', frame_stride)
         end_point = len(images) - frame_stride
 
-    # Error Checking: Empty Images
-    if (images == 0).all():
-       return [None] * 5
 
-    #For each consecutive pair
+    thetas = []
+    sigma_thetas = []
+    speeds = []
     pos = 0
-    dirMeans = np.array([])
-    dirSDs = np.array([])
-    vxMeans = np.array([])
-    vyMeans = np.array([])
-    speeds = np.array([])
-    divs = np.array([])
-
     filename = os.path.join(name, 'OpticalFlow.csv')
+
+    # Prepares the intermediate file for saving if setting is turned on
     if save_intermediates:
         myfile = open(filename, "w")
         csvwriter = csv.writer(myfile)
-
-    else: csvwriter = None
+    else: 
+        csvwriter = None
     
+    #For each consecutive pairs of frames, calculate the metrics average speed, average direction, directional spread
     for beg in range(0, end_point, frame_stride):
         end = beg + frame_stride
-        arr = execute_opt_flow(images, beg, end, divs, dirMeans, dirSDs, vxMeans, vyMeans, speeds, pos, save_intermediates, csvwriter)
-        dirMeans, dirSDs, vxMeans, vyMeans, speeds, divs = arr
+        execute_opt_flow(images, beg, end, pos, thetas, sigma_thetas, speeds, csvwriter)
         pos += 1
+    # If interval between frames does not reach end of video, add additional calculation step
     if end_point != len(images) - 1:
         beg = end
         end = len(images) - 1
-        arr = execute_opt_flow(images, beg, end, divs, dirMeans, dirSDs, vxMeans, vyMeans, speeds, pos, save_intermediates, csvwriter)
-        dirMeans, dirSDs, vxMeans, vyMeans, speeds, divs = arr
-
+        execute_opt_flow(images, beg, end, pos, thetas, sigma_thetas, speeds, csvwriter)
+        
+    # Close the CSV intermediate file
     if save_intermediates:
         myfile.close()
-    direct = dirMeans.mean()
-    directSD = dirSDs.mean()
-    mean_div = divs.mean()
-    mean_vel = (vxMeans.mean() ** 2 + vyMeans.mean() ** 2) ** (1/2)
-    mean_speed = speeds.mean()
-    
-    # Corrections to convert from pixels/flow field -> nm / sec
-    mean_vel = mean_vel * (1 / frame_stride) * nm_pix_ratio * (1 / frame_interval)
-    mean_speed = mean_speed * (1 / frame_stride) * nm_pix_ratio * (1 / frame_interval)
-    
-    return [mean_vel, mean_speed, mean_div, direct, directSD]
+
+
+    thetas = np.array(thetas)
+    sigma_thetas = np.array(sigma_thetas)
+    speeds = np.array(speeds)    
+    theta = thetas.mean() # Metric for average direction of flow (-pi, pi) "Flow Direction"
+    sigma_theta = sigma_thetas.mean() # Metric for st. dev of flow (-pi, pi) # ("Directional Spread")
+    mean_speed = speeds.mean() # Metric for avg. speed (units of nm/s) # Average speed
+    # Calculate delta speed as (v_f - v_i) / (t_f - t_i)
+    delta_speed = speeds[-1] - speeds[0]
+    delta_t = frame_interval * len(images)
+    delta_speed = delta_speed / delta_t
+    return [mean_speed, delta_speed, theta, sigma_theta]

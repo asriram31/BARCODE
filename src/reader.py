@@ -6,9 +6,12 @@ from nd2reader import ND2Reader
 def read_file(file_path, accept_dim = False, allow_large_files = True):
     print = functools.partial(builtins.print, flush=True)
     acceptable_formats = ('.tiff', '.tif', '.nd2')
+    accept_endings = ["failed_files.txt", "time.txt", ".csv", ".yaml", "Flow Field.png", "Summary Graphs.png", "Comparison.png"]
+    for ending in accept_endings:
+        if file_path.endswith(ending):
+            return None
+    
     print(file_path)
-    if file_path.endswith("failed_files.txt") or file_path.endswith("time.txt"):
-        return None
     if (os.path.exists(file_path) and file_path.endswith(acceptable_formats)) == False:
         print("Invalid format: files must be .tif or .nd2.")
         return None

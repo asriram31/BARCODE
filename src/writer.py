@@ -9,7 +9,7 @@ def write_file(output_filepath, data):
             'Void Area Change', 'Island Area Change', 'Initial Island Area 1', 
             'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Skewness', 
             'Maximum Asymmetry', 'Kurtosis Difference', 'Skewness Difference', 
-            'Asymmetry Difference', 'Mean Speed', 'Speed Change'
+            'Asymmetry Difference', 'Mean Speed', 'Speed Change',
             'Mean Flow Direction', 'Flow Directional Spread']
         with open(output_filepath, 'w', newline='', encoding="utf-8") as csvfile:
             csvwriter = csv.writer(csvfile)
@@ -34,7 +34,7 @@ def generate_aggregate_csv(filelist, csv_loc, gen_barcode, normalize, num_params
             'Void Area Change', 'Island Area Change', 'Initial Island Area 1', 
             'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Skewness', 
             'Maximum Asymmetry', 'Kurtosis Difference', 'Skewness Difference', 
-            'Asymmetry Difference', 'Mean Speed', 'Speed Change'
+            'Asymmetry Difference', 'Mean Speed', 'Speed Change',
             'Mean Flow Direction', 'Flow Directional Spread']
     f = open(csv_loc, 'w', encoding="utf-8") # Clears the CSV file if it already exists, and creates it if it does not
     csv_writer = csv.writer(f)
@@ -96,8 +96,8 @@ def gen_combined_barcode(data, figpath, normalize_data = True, num_params = 19):
         for i in range(num_params - 2):
             if all(v is None for v in all_entries[i]):
                 continue
-            entries = [x for x in all_entries[i] if (x != np.nan and x != None)]
-            limits[i] = [np.min(entries[i]), np.max(entries[i])]
+            # entries = [x for x in all_entries[i] if (x != np.nan and x != None)]
+            limits[i] = [np.nanmin(all_entries[i]), np.nanmax(all_entries[i])]
     colormap = plt.get_cmap('plasma')  # Colormap for floats
 
     def normalize(x, min_float, max_float):

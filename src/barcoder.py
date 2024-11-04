@@ -18,7 +18,7 @@ def check_channel_dim(image):
     mean_intensity = np.mean(image)
     return 2 * np.exp(-1) * mean_intensity <= min_intensity
 
-def execute_htp(filepath, config_data, fail_file_loc):
+def execute_htp(filepath, config_data, fail_file_loc, count, total):
     reader_data = config_data['reader']
     save_intermediates = config_data['writer']['return_intermediates']
     accept_dim_channel, accept_dim_im, channel_select, coarsening, flow, resilience, return_graphs, verbose = reader_data.values()
@@ -111,7 +111,8 @@ def execute_htp(filepath, config_data, fail_file_loc):
 
     if (isinstance(file, np.ndarray) == False):
         raise TypeError("File was not of the correct filetype")
-
+    
+    vprint(f"File {count} of {total}")
     channels = min(file.shape)
     
     rfc = []
@@ -145,7 +146,7 @@ def execute_htp(filepath, config_data, fail_file_loc):
             results = check(filepath, channel_select, resilience, flow, coarsening, r_data, f_data, c_data, fail_file_loc)
         rfc.append(results)
 
-    return rfc
+    return rfc, count + 1
 
 def remove_extension(filepath):
     if filepath.endswith('.tif'):
@@ -212,10 +213,7 @@ def process_directory(root_dir, config_data):
         ff_loc = os.path.join(root_dir, "failed_files.txt")
         open(ff_loc, 'w').close()
 
-        files = next(os.walk(root_dir))[2]
-        files = [file for file in files if (file.endswith(".tif") or file.endswith(".nd2"))]
-        file_count = len(files)
-
+        file_count = sum([len([file for file in files if (file.endswith(".tif") or file.endswith(".nd2"))]) for _, _, files in os.walk(root_dir)])
         file_itr = 1
         
         for dirpath, dirnames, filenames in os.walk(root_dir):
@@ -225,12 +223,10 @@ def process_directory(root_dir, config_data):
                 if filename.startswith('._'):
                     continue
 
-                vprint(f"File {file_itr} of {file_count}")
-
                 file_path = os.path.join(dirpath, filename)
                 start_time = time.time()
                 try:
-                    rfc_data = execute_htp(file_path, config_data, ff_loc)
+                    rfc_data, file_itr = execute_htp(file_path, config_data, ff_loc, file_itr, file_count)
                 except TypeError:
                     continue
                 except Exception as e:
@@ -250,8 +246,6 @@ def process_directory(root_dir, config_data):
                 vprint('Time Elapsed:', elapsed_time)
                 time_file.write(file_path + "\n")
                 time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
-
-                file_itr += 1
         
         output_filepath = os.path.join(root_dir, os.path.basename(root_dir) + " Summary.csv")
         try:

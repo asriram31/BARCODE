@@ -28,7 +28,7 @@ def groupAvg(arr, N, bin_mask=True):
         result = np.where(result > 0, 1, 0)
     return result
 
-def binarize(frame, offset_threshold = 0.1):
+def binarize(frame, offset_threshold):
     avg_intensity = np.mean(frame)
     threshold = avg_intensity * (1 + offset_threshold)
     new_frame = np.where(frame < threshold, 0, 1)
@@ -123,7 +123,7 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
     save_spots = np.array([0, mid_point, len(image)])
 
     for i in range(0, len(image), step):
-        new_image = binarize(image[i])
+        new_image = binarize(image[i], threshold)
         new_frame = groupAvg(new_image, 2)
         
         if i in save_spots and return_graphs:

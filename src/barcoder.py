@@ -173,8 +173,9 @@ def process_directory(root_dir, config_data):
         time_file = open(time_filepath, "w", encoding="utf-8")
         time_file.write(file_path + "\n")
         start_time = time.time()
+        file_count = 0
         try:
-            rfc_data = execute_htp(file_path, config_data, ff_loc)
+            rfc_data, file_count = execute_htp(file_path, config_data, ff_loc, file_count, total=1)
         except Exception as e:
             with open(ff_loc, "a", encoding="utf-8") as log_file:
                 log_file.write(f"File: {file_path}, Exception: {str(e)}\n")

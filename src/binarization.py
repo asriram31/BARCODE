@@ -119,7 +119,6 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
     
     mid_point_arr = range(0, len(image), step)
     mid_point = mid_point_arr[int((len(mid_point_arr) - 1)/2)]
-
     save_spots = np.array([0, mid_point, len(image)])
 
     for i in range(0, len(image), step):
@@ -133,6 +132,8 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
             ticks_adj = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x * 2))
             comp_axs[1].xaxis.set_major_formatter(ticks_adj)
             comp_axs[1].yaxis.set_major_formatter(ticks_adj)
+            comp_axs[0].axis('off')  # Turn off the axis
+            comp_axs[1].axis('off')  # Turn off the axis
             plt.savefig(os.path.join(name, 'Binarization Frame ' + str(i) + ' Comparison.png'))
             plt.close('all')
             
@@ -154,7 +155,7 @@ def track_void(image, name, threshold, step, return_graphs, save_intermediates):
         region_lst.append(regions)
     i = len(image) - 1    
     if i % step != 0:
-        new_image = binarize(image[i])
+        new_image = binarize(image[i], threshold)
         new_frame = groupAvg(new_image, 2)
         
         if i in save_spots and return_graphs:
@@ -194,7 +195,7 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
         return [None] * 6
     
     while len(image) <= frame_step:
-        frame_step = frame_step / 5
+        frame_step = int(frame_step / 5)
     
     largest_void_lst, island_area_lst, island_area_lst2, connected_lst = track_void(image, name, R_offset, frame_step, return_graphs, save_intermediates)
     start_index = int(np.floor(len(image) * frame_start_percent / frame_step))

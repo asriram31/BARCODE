@@ -7,9 +7,9 @@ def write_file(output_filepath, data):
         headers = [
             'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
             'Void Area Change', 'Island Area Change', 'Initial Island Area 1', 
-            'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Skewness', 
-            'Maximum Asymmetry', 'Kurtosis Difference', 'Skewness Difference', 
-            'Asymmetry Difference', 'Mean Speed', 'Speed Change',
+            'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Median Skewness', 
+            'Maximum Mode Skewness', 'Kurtosis Difference', 'Median Skewness Difference', 
+            'Mode Skewness Difference', 'Mean Speed', 'Speed Change',
             'Mean Flow Direction', 'Flow Directional Spread']
         with open(output_filepath, 'w', newline='', encoding="utf-8") as csvfile:
             csvwriter = csv.writer(csvfile)
@@ -32,9 +32,9 @@ def generate_aggregate_csv(filelist, csv_loc, gen_barcode, normalize, num_params
         headers = [
             'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
             'Void Area Change', 'Island Area Change', 'Initial Island Area 1', 
-            'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Skewness', 
-            'Maximum Asymmetry', 'Kurtosis Difference', 'Skewness Difference', 
-            'Asymmetry Difference', 'Mean Speed', 'Speed Change',
+            'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Median Skewness', 
+            'Maximum Mode Skewness', 'Kurtosis Difference', 'Median Skewness Difference', 
+            'Mode Skewness Difference', 'Mean Speed', 'Speed Change',
             'Mean Flow Direction', 'Flow Directional Spread']
     f = open(csv_loc, 'w', encoding="utf-8") # Clears the CSV file if it already exists, and creates it if it does not
     csv_writer = csv.writer(f)
@@ -106,7 +106,7 @@ def gen_combined_barcode(data, figpath, normalize_data = True, num_params = 19):
         return (x - min_float) / (max_float - min_float)
 
     for channel in unique_channels:
-        channel_figpath = figpath + '_channel_' + str(int(channel)) + '.png'
+        channel_figpath = f'{figpath}_channel_{channel}.png'
         filtered_channel_data = data[data[:,0] == channel]
         channel_agg_barcode = [None] * len(filtered_channel_data)
         for row in range(len(filtered_channel_data)):

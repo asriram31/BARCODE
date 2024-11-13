@@ -106,13 +106,11 @@ def execute_htp(filepath, config_data, fail_file_loc, count, total):
             
         return result
     
-    file = read_file(filepath, accept_dim_im)
-
+    file = read_file(filepath, count, total, accept_dim_im)
 
     if (isinstance(file, np.ndarray) == False):
         raise TypeError("File was not of the correct filetype")
     
-    vprint(f"File {count} of {total}")
     channels = min(file.shape)
     
     rfc = []
@@ -173,7 +171,7 @@ def process_directory(root_dir, config_data):
         time_file = open(time_filepath, "w", encoding="utf-8")
         time_file.write(file_path + "\n")
         start_time = time.time()
-        file_count = 0
+        file_count = 1
         try:
             rfc_data, file_count = execute_htp(file_path, config_data, ff_loc, file_count, total=1)
         except Exception as e:
@@ -229,6 +227,10 @@ def process_directory(root_dir, config_data):
                 try:
                     rfc_data, file_itr = execute_htp(file_path, config_data, ff_loc, file_itr, file_count)
                 except TypeError:
+                    for ending in ["failed_files.txt", "time.txt", ".csv", ".yaml", "Flow Field.png", "Summary Graphs.png", "Comparison.png"]:
+                        if file_path.endswith(ending) or 'Summary_Barcode_channel_' in file_path:
+                            file_itr -= 1 
+                    file_itr += 1
                     continue
                 except Exception as e:
                     with open(ff_loc, "a", encoding="utf-8") as log_file:
@@ -256,6 +258,7 @@ def process_directory(root_dir, config_data):
             output_filepath = os.path.join(root_dir, os.path.basename(root_dir) + f" Summary ({counter}).csv")
             while os.path.exists(output_filepath):
                 counter += 1
+                output_filepath = os.path.join(root_dir, os.path.basename(root_dir) + f" Summary ({counter}).csv")
             write_file(output_filepath, all_data)
         
         if stitch_barcode:

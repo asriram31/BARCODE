@@ -3,14 +3,15 @@ import imageio.v3 as iio
 import numpy as np
 from nd2reader import ND2Reader
 
-def read_file(file_path, accept_dim = False, allow_large_files = True):
+def read_file(file_path, count, total_count, accept_dim = False, allow_large_files = True):
     print = functools.partial(builtins.print, flush=True)
-    acceptable_formats = ('.tiff', '.tif', '.nd2')
+    acceptable_formats = ('.tif', '.nd2')
     accept_endings = ["failed_files.txt", "time.txt", ".csv", ".yaml", "Flow Field.png", "Summary Graphs.png", "Comparison.png"]
     for ending in accept_endings:
-        if file_path.endswith(ending):
+        if file_path.endswith(ending) or 'Summary_Barcode_channel_' in file_path:
             return None
     
+    print(f'File {count} of {total_count}')
     print(file_path)
     if (os.path.exists(file_path) and file_path.endswith(acceptable_formats)) == False:
         print("Invalid format: files must be .tif or .nd2.")

@@ -14,11 +14,17 @@ def calc_mode(frame):
     mode_intensity = mode_intensity[0] if mode_intensity.size > 0 else np.nan
     return mode_intensity
 
-def calculate_mean_mode_diff(frame):
+def calc_mode_skewness(frame):
     mean_intensity = np.mean(frame)
     mode_intensity = calc_mode(frame)
     stdev_intensity = np.std(frame)
     return (mean_intensity - mode_intensity)/stdev_intensity
+
+def calc_median_skewness(frame):
+    mean_intensity = np.mean(frame)
+    median_intensity = np.median(frame)
+    stdev_intensity = np.std(frame)
+    return 3 * (mean_intensity - median_intensity)/stdev_intensity
 
 def top_ten_average(lst):
     lst.sort(reverse=True)
@@ -116,22 +122,22 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     i_kurt = calc_frame_metric(kurtosis, i_frames_data)
     f_kurt = calc_frame_metric(kurtosis, f_frames_data)
     tot_kurt = i_kurt + f_kurt
-    i_skew = calc_frame_metric(skew, i_frames_data)
-    f_skew = calc_frame_metric(skew, f_frames_data)
-    tot_skew = i_skew + f_skew
-    i_mean_mode = calc_frame_metric(calculate_mean_mode_diff, i_frames_data)
-    f_mean_mode = calc_frame_metric(calculate_mean_mode_diff, f_frames_data)
-    tot_mean_mode = i_mean_mode + f_mean_mode
+    i_median_skew = calc_frame_metric(calc_median_skewness, i_frames_data)
+    f_median_skew = calc_frame_metric(calc_median_skewness, f_frames_data)
+    tot_median_skew = i_median_skew + f_median_skew
+    i_mode_skew = calc_frame_metric(calc_mode_skewness, i_frames_data)
+    f_mode_skew = calc_frame_metric(calc_mode_skewness, f_frames_data)
+    tot_mode_skew = i_mode_skew + f_mode_skew
 
     # Take the largest ten percent of each metric and average them
     max_kurt = top_ten_average(tot_kurt)
-    max_skew = top_ten_average(tot_skew)
-    max_mean_mode = top_ten_average(tot_mean_mode)
+    max_median_skew = top_ten_average(tot_median_skew)
+    max_mode_skew = top_ten_average(tot_mode_skew)
 
     # Take the difference of the average between the first and last 10% of frames
     kurt_diff = np.mean(np.array(f_kurt)) - np.mean(np.array(i_kurt))
-    skew_diff = np.mean(np.array(f_skew)) - np.mean(np.array(i_skew))
-    mean_mode_diff = np.mean(np.array(f_mean_mode)) - np.mean(np.array(i_mean_mode))
+    median_skew_diff = np.mean(np.array(f_median_skew)) - np.mean(np.array(i_median_skew))
+    mode_skew_diff = np.mean(np.array(f_mode_skew)) - np.mean(np.array(i_mode_skew))
 
     # Plot the intensity distributions for the first and last frame for comparison
     i_frame = im[first_frame]
@@ -159,4 +165,4 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     ax.set_xlim(0,max_px_intensity)
     ax.legend()
     
-    return fig, [max_kurt, max_skew, max_mean_mode, kurt_diff, skew_diff, mean_mode_diff], flag
+    return fig, [max_kurt, max_median_skew, max_mode_skew, kurt_diff, median_skew_diff, mode_skew_diff], flag

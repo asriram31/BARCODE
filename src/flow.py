@@ -1,13 +1,8 @@
-from reader import read_file
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2 as cv
-from scipy.fft import fft2, ifft2
-from scipy.interpolate import Akima1DInterpolator
-from scipy import optimize
-import os, math, csv, functools, builtins
+import os, csv, functools, builtins
 import matplotlib.ticker as ticker
-import statistics
 
 """
 Takes an average downsampling of 2D array to go from array of dimension (x, y) to (x/N, y/N)
@@ -76,8 +71,9 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
         mid_point_arr = range(0, end_point, frame_stride)
         mid_point = mid_point_arr[int((len(mid_point_arr) - 1)/2)]
         positions = np.array([0, mid_point, end_point])
+        img_shape = downU.shape[0] / downU.shape[1]
         if np.isin(beg, positions) and return_graphs:
-            fig, ax = plt.subplots(figsize=(10,10))
+            fig, ax = plt.subplots(figsize=(10 * img_shape,10))
             q = ax.quiver(downU, downV, color='blue')
             figpath = os.path.join(name,  'Frame '+ str(beg) + ' Flow Field.png')
             ticks_adj = ticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x * downsample))
@@ -87,18 +83,17 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
             plt.close(fig)
         
         # Convert speed from pixels / interval to nm/sec
-        # Conversion: px/interval * interval/frame * sec/frame * nm/px
+        # Conversion: px/interval * interval/frame * 1/(sec/frame) * nm/px
         avg_speed = np.mean(speed) * 1/(frame_interval) * 1/(frame_stride) * nm_pix_ratio
         thetas.append(np.mean(directions))
         sigma_thetas.append(np.std(directions))
         speeds.append(avg_speed)
         return
 
-
     images = file[:,:,:,channel]
     # Error Checking: Empty Images
     if (images == 0).all():
-       return [None] * 4
+       return [np.nan] * 4
 
     end_point = len(images) - frame_stride
     while end_point <= 0: # Checking to see if frame_stride is too large
@@ -139,11 +134,9 @@ def check_flow(file, name, channel, frame_stride, downsample, frame_interval, nm
     thetas = np.array(thetas)
     sigma_thetas = np.array(sigma_thetas)
     speeds = np.array(speeds)    
-    theta = thetas.mean() # Metric for average direction of flow (-pi, pi) "Flow Direction"
-    sigma_theta = sigma_thetas.mean() # Metric for st. dev of flow (-pi, pi) # ("Directional Spread")
+    theta = thetas.mean() # Metric for average direction of flow (-pi, pi) # "Flow Direction"
+    sigma_theta = sigma_thetas.mean() # Metric for st. dev of flow (-pi, pi) # "Flow Directional Spread"
     mean_speed = speeds.mean() # Metric for avg. speed (units of nm/s) # Average speed
     # Calculate delta speed as (v_f - v_i) / (t_f - t_i)
     delta_speed = speeds[-1] - speeds[0]
-    delta_t = frame_interval * len(images)
-    delta_speed = delta_speed / delta_t
     return [mean_speed, delta_speed, theta, sigma_theta]

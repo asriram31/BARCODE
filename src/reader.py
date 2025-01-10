@@ -1,14 +1,14 @@
-import os, pims, functools, builtins
+import os, functools, builtins
 import imageio.v3 as iio
 import numpy as np
-from nd2reader import ND2Reader
+import nd2
 
 def read_file(file_path, count, total_count, accept_dim = False, allow_large_files = True):
     print = functools.partial(builtins.print, flush=True)
     acceptable_formats = ('.tif', '.nd2')
-    accept_endings = ["failed_files.txt", "time.txt", ".csv", ".yaml", "Flow Field.png", "Summary Graphs.png", "Comparison.png"]
+    accept_endings = ["failed_files.txt", "time.txt", ".csv", ".yaml", "Flow Field.png", "Summary Graphs.png", "Comparison.png", "Thumbs.db"]
     for ending in accept_endings:
-        if file_path.endswith(ending) or 'Summary_Barcode_channel_' in file_path:
+        if file_path.endswith(ending) or 'Barcode_channel_' in file_path:
             return None
     
     print(f'File {count} of {total_count}')
@@ -27,66 +27,33 @@ def read_file(file_path, count, total_count, accept_dim = False, allow_large_fil
         min_intensity = np.min(file[0])
         mean_intensity = np.mean(file[0])
         return 2 * np.exp(-1) * mean_intensity <= min_intensity
-
-    def bleach_correction(im):
-        min_px_intensity = np.min(im)
-        num_frames=len(im) #num frames in video
-        corrected_frames = np.zeros_like(im)
-        
-        # Calculate the mean intensity of the first frame
-        i_frame_data = im[0] - min_px_intensity
-        initial_mean_intensity = np.mean(i_frame_data)
-        
-        #bleach correction for each frame
-        for i in range(0, num_frames):
-            frame_data=im[i] - min_px_intensity
-            # Calculate normalization factor relative to the first frame
-            normalization_factor=initial_mean_intensity / np.mean(frame_data)
-            corrected_frames[i] = normalization_factor * frame_data + min_px_intensity
-        return corrected_frames
-
     
-    def convert_to_array(file):
-        num_images = file.sizes['t']
-        num_channels = len(file.metadata['channels'])
-        height = file.metadata['height']
-        width = file.metadata['width']
-        images = np.zeros((num_images, height, width, num_channels))
-
-        if num_images <= 1: # Checks to see if file is z-stack instead of time series
-            return None
-        
-        for i in range(num_channels):
-            for j in range(num_images):
-                frame = np.array(file.get_frame_2D(c=i, t=j))
-                images[j, :, :, i] = frame
-                
-        return images
-    if file_path.endswith('.tiff') or file_path.endswith('.tif'):
+    if file_path.endswith('.tif'):
         file = iio.imread(file_path)
         file = np.reshape(file, (file.shape + (1,))) if len(file.shape) == 3 else file
 
     elif file_path.endswith('.nd2'):
         try:
-            file_nd2 = ND2Reader(file_path)
-            if file_nd2 == None:
-                return None
-        except:
+            with nd2.ND2File(file_path) as ndfile:
+                if len(ndfile.shape) >= 5 or "Z" in ndfile.sizes:
+                    print('Z-stack identified, skipping to next file...')
+                    return None
+                if 'T' not in ndfile.sizes or len(ndfile.shape) <= 2 or ndfile.sizes['T'] <= 5:
+                    print('Too few frames, unable to capture dynamics, skipping to next file...')
+                    return None
+                if ndfile == None:
+                    print('No file detected, skipping to next file...')
+                    return None
+                file = ndfile.asarray()
+                shape = (file.shape[0], file.shape[2], file.shape[3], file.shape[1]) # Reorder
+                file = np.swapaxes(np.swapaxes(file, 1, 2), 2, 3)
+
+        except Exception as e:
+            print(f'Unable to read file, skipping to next file...')
             return None
-        file = convert_to_array(file_nd2)
         if isinstance(file, np.ndarray) == False:
             return None
-
-    # file = bleach_correction(file)
-
-    if len(file.shape) == 2:
-        print("Static image: can not capture dynamics, skipping to next file...")
-        return None
-
-    if len(file) <= 5:
-        print("Too few frames, unable to capture dynamics, skipping to next file...")
-        return None
-
+        
     if (file == 0).all():
         print('Empty file: can not process, skipping to next file...')
         return None

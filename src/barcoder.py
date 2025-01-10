@@ -1,12 +1,10 @@
 from reader import read_file
-import os, csv, sys, yaml, time, functools, builtins
+import os, yaml, time, functools, builtins
 from binarization import check_resilience
 from flow import check_flow
 from intensity_distribution_comparison import check_coarse
 import numpy as np
-from pathlib import Path
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 from matplotlib import gridspec
 from writer import write_file, gen_combined_barcode
 
@@ -41,7 +39,8 @@ def execute_htp(filepath, config_data, fail_file_loc, count, total):
         if resilience == True:
             r_offset = resilience_data['r_offset']
             f_step = resilience_data['frame_step']
-            f_start, f_stop = resilience_data['evaluation_settings'].values()
+            f_start = resilience_data['evaluation_settings']['f_start']
+            f_stop = resilience_data['evaluation_settings']['f_stop']
             try:
                 rfig, binarization_outputs = check_resilience(file, fig_channel_dir_name, channel, r_offset, f_step, f_start, f_stop, return_graphs, save_intermediates, verbose)
             except Exception as e:
@@ -53,7 +52,11 @@ def execute_htp(filepath, config_data, fail_file_loc, count, total):
             rfig = None
             binarization_outputs = [None] * 7
         if flow == True:
-            downsample, frame_step, frame_interval, nm_pix_ratio, win_size = flow_data.values()
+            downsample = flow_data['downsample']
+            frame_interval = flow_data['frame_interval']
+            frame_step = flow_data['frame_step']
+            nm_pix_ratio = flow_data['nm_pixel_ratio']
+            win_size = flow_data['win_size']
             try:
                 flow_outputs = check_flow(file, fig_channel_dir_name, channel, int(frame_step), downsample, frame_interval, nm_pix_ratio, return_graphs, save_intermediates, verbose, int(win_size))
             except Exception as e:
@@ -63,7 +66,8 @@ def execute_htp(filepath, config_data, fail_file_loc, count, total):
         else:
             flow_outputs = [None] * 4
         if coarse == True:
-            fframe, lframe = coarse_data['evaluation_settings'].values()
+            fframe = coarse_data['evaluation_settings']['first_frame']
+            lframe = coarse_data['evaluation_settings']['last_frame']
             percent_frames = coarse_data['mean_mode_frames_percent']
             try:
                 cfig, id_outputs, flag = check_coarse(file, fig_channel_dir_name, channel, fframe, lframe, percent_frames, save_intermediates, verbose)
@@ -107,7 +111,6 @@ def execute_htp(filepath, config_data, fail_file_loc, count, total):
         return result
     
     file = read_file(filepath, count, total, accept_dim_im)
-
     if (isinstance(file, np.ndarray) == False):
         raise TypeError("File was not of the correct filetype")
     
@@ -178,13 +181,22 @@ def process_directory(root_dir, config_data):
             with open(ff_loc, "a", encoding="utf-8") as log_file:
                 log_file.write(f"File: {file_path}, Exception: {str(e)}\n")
         if rfc_data == None:
-            raise TypeError("Please input valid file type ('.nd2', '.tiff', '.tif')")
+            raise TypeError("Please input valid file type ('.nd2', '.tif')")
         all_data.append([filename])
         all_data.extend(rfc_data)
         all_data.append([])
         filename = remove_extension(filename) + '_'
         end_time = time.time()
         elapsed_time = end_time - start_time
+        if elapsed_time / 3600 > 1:
+            elapsed_hours = int(elapsed_time // 3600)
+            elapsed_minutes = (elapsed_time - (elapsed_hours * 3600))/60
+            elapsed_time = f'{elapsed_hours:.2f} hours, {elapsed_minutes:.2f} minutes'
+        elif elapsed_time / 60 > 1:
+            elapsed_minutes = elapsed_time / 60
+            elapsed_time = f'{elapsed_minutes:.2f} minutes'
+        else:
+            elapsed_time = f'{elapsed_time:.2f} seconds'
         vprint('Time Elapsed:', elapsed_time)
         time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
         output_filepath = os.path.join(dir_name, filename + ' summary.csv')
@@ -227,10 +239,10 @@ def process_directory(root_dir, config_data):
                 try:
                     rfc_data, file_itr = execute_htp(file_path, config_data, ff_loc, file_itr, file_count)
                 except TypeError:
-                    for ending in ["failed_files.txt", "time.txt", ".csv", ".yaml", "Flow Field.png", "Summary Graphs.png", "Comparison.png"]:
-                        if file_path.endswith(ending) or 'Summary_Barcode_channel_' in file_path:
-                            file_itr -= 1 
-                    file_itr += 1
+                    # for ending in ["failed_files.txt", "time.txt", ".csv", ".yaml", "Flow Field.png", "Summary Graphs.png", "Comparison.png", "Thumbs.db"]:
+                    #     if file_path.endswith(ending) or 'Barcode_channel_' in file_path:
+                    #         file_itr -= 1 
+                    # file_itr += 1
                     continue
                 except Exception as e:
                     with open(ff_loc, "a", encoding="utf-8") as log_file:
@@ -246,6 +258,15 @@ def process_directory(root_dir, config_data):
 
                 end_time = time.time()
                 elapsed_time = end_time - start_time
+                if elapsed_time / 3600 > 1:
+                    elapsed_hours = int(elapsed_time // 3600)
+                    elapsed_minutes = (elapsed_time - (elapsed_hours * 3600))/60
+                    elapsed_time = f'{elapsed_hours:.2f} hours, {elapsed_minutes:.2f} minutes'
+                elif elapsed_time / 60 > 1:
+                    elapsed_minutes = elapsed_time / 60
+                    elapsed_time = f'{elapsed_minutes:.2f} minutes'
+                else:
+                    elapsed_time = f'{elapsed_time:.2f} seconds'
                 vprint('Time Elapsed:', elapsed_time)
                 time_file.write(file_path + "\n")
                 time_file.write('Time Elapsed: ' + str(elapsed_time) + "\n")
@@ -271,6 +292,15 @@ def process_directory(root_dir, config_data):
 
         end_folder_time = time.time()
         elapsed_folder_time = end_folder_time - start_folder_time
+        if elapsed_folder_time / 3600 > 1:
+            elapsed_hours = int(elapsed_folder_time // 3600)
+            elapsed_minutes = (elapsed_folder_time - (elapsed_hours * 3600))/60
+            elapsed_folder_time = f'{elapsed_hours:.2f} hours, {elapsed_minutes:.2f} minutes'
+        elif elapsed_folder_time / 60 > 1:
+            elapsed_minutes = elapsed_folder_time / 60
+            elapsed_folder_time = f'{elapsed_minutes:.2f} minutes'
+        else:
+            elapsed_folder_time = f'{elapsed_folder_time:.2f} seconds'
         vprint('Time Elapsed to Process Folder:', elapsed_folder_time)
         time_file.write('Time Elapsed to Process Folder: ' + str(elapsed_folder_time) + "\n")
         

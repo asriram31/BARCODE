@@ -1,12 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import imageio.v3 as iio
-# from numpy.polynomial import Polynomial, polyroots
-from nd2reader import ND2Reader
-from scipy.interpolate import splrep, sproot, BSpline
-import scipy, csv, os, functools, builtins
-from scipy.stats import mode, skew, kurtosis
-import scipy.signal as signal
+import csv, os, functools, builtins
+from scipy.stats import mode, kurtosis
 
 def calc_mode(frame):
     mode_result = mode(frame.flatten(), keepdims=False)
@@ -32,7 +27,7 @@ def top_ten_average(lst):
     top_ten_percent = int(np.ceil(length * 0.1))
     return np.mean(lst[0:top_ten_percent])
 
-def populate_intensity_array(video, first, last):
+def populate_intensity_array(video, first, last, ignore_saturation = True):
     i_arr = []
     dropped_frames = 0
     inc = 1 if first < last else -1
@@ -45,8 +40,13 @@ def populate_intensity_array(video, first, last):
         f_max = np.max(frame)
         while f_max == f_mode:
             frame_no += inc
-            if frame_no >= len(video) or frame_no < 0:
+            if (frame_no >= len(video) or frame_no < 0) and not ignore_saturation:
                 return None, None, None
+            elif (frame_no >= len(video) or frame_no < 0):
+                i_arr = [video[i] for i in range(first, last, inc)]
+                dropped_frames = len(video)
+                frame_no = last
+                return np.array(i_arr), dropped_frames, frame_no
             frame = video[frame_no]
             f_mode = calc_mode(frame)
             f_max = np.max(frame)
@@ -62,7 +62,7 @@ def calc_frame_metric(metric, data):
         mets.append(met)
     return mets
 
-def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, save_intermediates, verbose):
+def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, save_intermediates, verbose, ignore_saturation = True):
     flag = 0 # No flags have been tripped by the module
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
@@ -78,25 +78,33 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     fig, ax = plt.subplots(figsize=(5,5))
 
     if (im == 0).all(): # If image is blank, then end program early
-        return None, [None] * 6, None
+        return np.nan, [np.nan] * 6, np.nan
     
     max_px_intensity = 1.1*np.max(im)
     bins_width = 3
         
-    i_frames_data, i_dropped_frames, i_final_index = populate_intensity_array(im, first_frame, first_frame+num_frames_analysis)
+    # i_frames_data, i_dropped_frames, i_final_index = populate_intensity_array(im, first_frame, first_frame+num_frames_analysis, ignore_saturation)
 
-    if last_frame == False or last_frame >= len(im):
-        last_frame = len(im) - 1
-        f_frames_data, f_dropped_frames, f_final_index = populate_intensity_array(im, last_frame, last_frame - num_frames_analysis) 
+    # if last_frame == False or last_frame >= len(im):
+    #     last_frame = len(im) - 1
+    #     f_frames_data, f_dropped_frames, f_final_index = populate_intensity_array(im, last_frame, last_frame - num_frames_analysis, ignore_saturation) 
 
-    else:
-        f_frames_data, f_dropped_frames, f_final_index = populate_intensity_array(im, last_frame, last_frame - num_frames_analysis)
+    # else:
+    #     f_frames_data, f_dropped_frames, f_final_index = populate_intensity_array(im, last_frame, last_frame - num_frames_analysis, ignore_saturation)
     
-    if i_dropped_frames == None or f_dropped_frames == None:
-        vprint("Entire video saturated, unable to process")
-        return None, [None] * 6, 2
+    # if i_dropped_frames == None or f_dropped_frames == None:
+    #     vprint("Entire video saturated, unable to process")
+    #     return None, [np.nan] * 6, 2
+    
+    # tot_dropped_frames = i_dropped_frames + f_dropped_frames
 
-    vprint(f"Number of dropped frames due to saturation: {i_dropped_frames + f_dropped_frames}; Range of Frames Explored: ({first_frame}, {i_final_index}) and ({f_final_index}, {last_frame})")
+    # if i_dropped_frames == len(im) or f_dropped_frames == len(im):
+    #     tot_dropped_frames = len(im)
+
+    # vprint(f"Number of dropped frames due to saturation: {tot_dropped_frames}; Range of Frames Explored: ({first_frame}, {i_final_index}) and ({f_final_index}, {last_frame})")
+
+    i_frames_data = [im[i] for i in range(0, num_frames_analysis, 1)]
+    f_frames_data = [im[i] for i in range(last_frame - num_frames_analysis, last_frame, 1)]
 
     if save_intermediates:
         filename = os.path.join(name, 'IntensityDistribution.csv')

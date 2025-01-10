@@ -1,15 +1,16 @@
-import os, csv, functools, builtins
+import os, csv
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 
 def write_file(output_filepath, data):
     if data:
         headers = [
             'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
-            'Void Area Change', 'Island Area Change', 'Initial Island Area 1', 
+            'Island Area Change', 'Void Area Change', 'Initial Island Area 1', 
             'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Median Skewness', 
-            'Maximum Mode Skewness', 'Kurtosis Difference', 'Median Skewness Difference', 
-            'Mode Skewness Difference', 'Mean Speed', 'Speed Change',
+            'Maximum Mode Skewness', 'Kurtosis Change', 'Median Skewness Change', 
+            'Mode Skewness Change', 'Mean Speed', 'Speed Change',
             'Mean Flow Direction', 'Flow Directional Spread']
         with open(output_filepath, 'w', newline='', encoding="utf-8") as csvfile:
             csvwriter = csv.writer(csvfile)
@@ -26,108 +27,211 @@ def write_file(output_filepath, data):
                     # Write an empty row
                     csvwriter.writerow([])
 
-def generate_aggregate_csv(filelist, csv_loc, gen_barcode, normalize, num_params = 19):
+def generate_aggregate_csv(filelist, csv_loc, gen_barcode, normalize, sort = None, separate_channel = False):
     if gen_barcode:
-        combined_barcode_loc = os.path.join(os.path.dirname(csv_loc), 'aggregate_barcode')
+        combined_barcode_loc = os.path.join(os.path.dirname(csv_loc), f'{os.path.basename(csv_loc).removesuffix('.csv')} Barcode')
         headers = [
             'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
-            'Void Area Change', 'Island Area Change', 'Initial Island Area 1', 
+            'Island Area Change', 'Void Area Change', 'Initial Island Area 1', 
             'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Median Skewness', 
-            'Maximum Mode Skewness', 'Kurtosis Difference', 'Median Skewness Difference', 
-            'Mode Skewness Difference', 'Mean Speed', 'Speed Change',
+            'Maximum Mode Skewness', 'Kurtosis Change', 'Median Skewness Change', 
+            'Mode Skewness Change', 'Mean Speed', 'Speed Change',
             'Mean Flow Direction', 'Flow Directional Spread']
-    f = open(csv_loc, 'w', encoding="utf-8") # Clears the CSV file if it already exists, and creates it if it does not
-    csv_writer = csv.writer(f)
-    csv_writer.writerow(headers)
-    f.close()
-    
-    def combine_csvs(csv_list):
+    def combine_csvs(csv_list, keep_csv = False):
+        if not keep_csv:
+            with open(csv_loc, 'w', encoding="utf-8", newline="\n") as f:
+                csv_writer = csv.writer(f)
+                csv_writer.writerow(headers)
+        num_params = len(headers)
         filenames = []
         csv_data = np.zeros(shape=(num_params))
         if not csv_list:
             return None
         for csv_file in csv_list:
-            with open(csv_file, 'r') as fread, open(csv_loc, 'a', encoding="utf-8") as fwrite:
-                csv_reader = csv.reader(fread)
-                csv_writer = csv.writer(fwrite)
-                next(csv_reader, None)
-                for row in csv_reader:
-                    if len(row) == 1:
-                        filenames.append(str(row))
-                    elif len(row) == 0:
-                        continue
-                    else:
-                        row = np.float_(row)
-                        arr_row = np.array(row)
-                        csv_data = np.vstack((csv_data, arr_row))
-                    csv_writer.writerow(row)
-        return csv_data
-
-    csv_data = combine_csvs(filelist)
+            if not keep_csv:
+                with open(csv_file, 'r', newline='\n') as fread, open(csv_loc, 'a', encoding="utf-8", newline='\n') as fwrite:
+                    csv_reader = csv.reader(fread)
+                    csv_writer = csv.writer(fwrite)
+                    next(csv_reader, None)
+                    for row in csv_reader:
+                        if len(row) == 1:
+                            filenames.append(str(row))
+                        elif len(row) == 0:
+                            row = []
+                        else:
+                            if row.count(None) == len(row) - 1:
+                                row = row[0]
+                                filenames.append(str(row))
+                            else:
+                                if row.count("") == len(row) - 1:
+                                    filenames.append(str(row[0]))
+                                row = [float(val) if val != '' else np.nan for val in row]
+                                arr_row = np.array(row)
+                                csv_data = np.vstack((csv_data, arr_row))
+                        csv_writer.writerow(row)
+            else:
+                with open(csv_file, 'r', newline='\n') as fread:
+                    csv_reader = csv.reader(fread)
+                    next(csv_reader, None)
+                    for row in csv_reader:
+                        if len(row) == 1:
+                            filenames.append(str(row))
+                        elif len(row) == 0:
+                            row = []
+                        else:
+                            if row.count("") == len(row) - 1:
+                                filenames.append(str(row[0]))
+                            else:
+                                row = [float(val) if val != '' else np.nan for val in row]
+                                arr_row = np.array(row)
+                                csv_data = np.vstack((csv_data, arr_row))
+            return csv_data
     
+    if len(filelist) == 1 and filelist[0] == csv_loc:
+        csv_data = combine_csvs(filelist, True)
+    else:
+        csv_data = combine_csvs(filelist)
+
     if gen_barcode:
         csv_data_2 = csv_data[1:]
-        gen_combined_barcode(csv_data_2, combined_barcode_loc, normalize)
+        gen_combined_barcode(csv_data_2, combined_barcode_loc, normalize, sort, separate_channel)
 
-def gen_combined_barcode(data, figpath, normalize_data = True, num_params = 19):
+def gen_combined_barcode(data, figpath, normalize_data = True, sort = None, separate = True):
+    headers = [
+            'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
+            'Island Area Change', 'Void Area Change', 'Initial Island Area 1', 
+            'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Median Skewness', 
+            'Maximum Mode Skewness', 'Kurtosis Change', 'Median Skewness Change', 
+            'Mode Skewness Change', 'Mean Speed', 'Speed Change',
+            'Mean Flow Direction', 'Flow Directional Spread']
+    
+    def add_units(metric):
+        percent_metrics = ['Maximum Island Area', 'Maximum Void Area', 'Initial Island Area 1', 'Initial Island Area 2']
+        no_unit_metrics = ['Maximum Kurtosis', 'Maximum Median Skewness', 'Maximum Mode Skewness', 'Kurtosis Change', 'Median Skewness Change', 'Mode Skewness Change']
+        percent_change_metrics = ['Void Area Change', 'Island Area Change']
+        directional_metrics = ['Mean Flow Direction', 'Flow Directional Spread']
+        speed_metric = "Mean Speed"
+        acceleration_metric = "Speed Change"
+        percent_frames = "Connectivity"
+        if metric in percent_metrics:
+            output_metric = metric + " (% of FOV)"
+        elif metric in no_unit_metrics:
+            output_metric = metric
+        elif metric in percent_change_metrics:
+            output_metric = metric + " (Fractional Change)"
+        elif metric in directional_metrics:
+            output_metric = metric + " (rads)"
+        elif metric == speed_metric:
+            output_metric = metric + " (nm/s)"
+        elif metric == acceleration_metric:
+            output_metric = metric + " (nm/s)"
+        elif metric == percent_frames:
+            output_metric = metric + " (% of Frames)"
+        return output_metric
+    num_params = len(headers)
+    headers.remove('Channel')
+    headers.remove('Flags')
     if len(data.shape) <= 1:
         data = np.reshape(data, (1, data.shape[0]))
     if data.shape[1] == 0:
         return
     channels = data[:,0]
     unique_channels = np.unique(channels)
+
+    unique_channels = unique_channels[~np.isnan(unique_channels)]
+
+
     flags = data[:,1]
-    all_entries = [data[:,i] for i in range(2, num_params)]
+    params = {'Connectivity': 0, 'Maximum Island Area': 1, 'Maximum Void Area': 2, 
+            'Island Area Change': 3, 'Void Area Change': 4, 'Initial Island Area 1': 5, 
+            'Initial Island Area 2': 6, 'Maximum Kurtosis': 7, 'Maximum Median Skewness': 8, 
+            'Maximum Mode Skewness': 9, 'Kurtosis Change': 10, 'Median Skewness Change': 11, 
+            'Mode Skewness Change': 12, 'Mean Speed': 13, 'Speed Change': 14,
+            'Mean Flow Direction': 15, 'Flow Directional Spread': 16}
+    if sort != None:
+        sort_idx = params.get(sort) + 2
+        sorted_indices = np.argsort(data[:,sort_idx])
+        data = data[sorted_indices]
+    all_entries = np.array([data[:,i] for i in range(2, num_params)])
 
+
+    limits = [_ for _ in range(num_params - 2)]
+    norms = []
     # Define normalization limits of floating point values
-    connected_lim = [0, 1] # Limit on the percentage of frames that are connected
-    bin_size_lim = [0, 1]  # Size limit for void and island size
-    bin_growth_lim = [0, 5] # Limits for the expected growth of the void or island
-    c_lim = [0, 10] # Limit on the percentage of asymmetry difference thresholding
-    kurt_lim = [-10, 10] # Limit on the kurtosis
-    skew_lim = [-10, 10] # Limit on the skewness
-    avg_speed_lim = [0, 10] # Limit for the average speed (pixels/sec)
-    diff_speed_lim = [0, 10] # Limit for speed difference
-    direct_lim = [-np.pi, np.pi] # Limits on the direction of the island and flow (radians)
+    binarized_static_limits = [0, 1]
+    direction_static_limits = [-np.pi, np.pi]
+    direction_spread_static_limit = [0, np.pi]
+    change_limits = {3:1, 4:1, 10:0, 11:0, 12:0, 14:0}
     
-    limits = [connected_lim, bin_size_lim, bin_size_lim, bin_growth_lim, bin_growth_lim, bin_size_lim, bin_size_lim, kurt_lim, skew_lim, c_lim, kurt_lim, skew_lim, c_lim, avg_speed_lim, diff_speed_lim, direct_lim, direct_lim]
+    def check_limits(limit, thresh):
+        if thresh < limit[0]:
+            limit[0] = thresh
+        elif thresh > limit[1]:
+            limit[1] = thresh
+        return limit
 
-    if normalize_data:
-        for i in range(num_params - 2):
-            if all(v is None for v in all_entries[i]):
-                continue
-            # entries = [x for x in all_entries[i] if (x != np.nan and x != None)]
+    for i in range(num_params - 2):
+        static_indices = [0, 1, 2, 5, 6, 15, 16]
+        if i in static_indices and normalize_data == False:
+            if i in static_indices[:-2]:
+                limits[i] = binarized_static_limits
+            elif i == static_indices[-2]:
+                limits[i] = direction_static_limits
+            else:
+                limits[i] = direction_spread_static_limit
+        elif i in change_limits.keys():
             limits[i] = [np.nanmin(all_entries[i]), np.nanmax(all_entries[i])]
-    colormap = plt.get_cmap('plasma')  # Colormap for floats
+            limits[i] = check_limits(limits[i], change_limits.get(i))
+        else:
+            limits[i] = [np.nanmin(all_entries[i]), np.nanmax(all_entries[i])]
+            limits[i] = [0, limits[i][1]]
+        norms.append(mpl.colors.Normalize(vmin = limits[i][0], vmax = limits[i][1]))
+    cmap = plt.get_cmap('plasma')  # Colormap for floats
+    cmap.set_bad("black")
 
     def normalize(x, min_float, max_float):
-        if x == None:
+        if x == None or x == np.nan:
             return None
         return (x - min_float) / (max_float - min_float)
 
     for channel in unique_channels:
-        channel_figpath = f'{figpath}_channel_{channel}.png'
-        filtered_channel_data = data[data[:,0] == channel]
-        channel_agg_barcode = [None] * len(filtered_channel_data)
-        for row in range(len(filtered_channel_data)):
-            barcode = [None] * (num_params - 2)
-            for idx in range(len(all_entries)):
-                value = filtered_channel_data[row, 2 + idx]
-                lims = limits[idx]
-                cval = normalize(value, lims[0], lims[1])
-                color = [0.5, 0.5, 0.5] if cval == None else colormap(cval)[:3]
-                barcode[idx] = color
-            channel_agg_barcode[row] = barcode
+        if separate:
+            channel_figpath = f'{figpath} (Channel {int(channel)}).svg'
+            filtered_channel_data = np.array(data[data[:,0] == channel][:,2:])
+        else:
+            channel_figpath = f'{figpath}.svg'
+            filtered_channel_data = np.array(data[np.isin(data[:,0], unique_channels)][:,2:])
+
+        height = 9 * int(len(filtered_channel_data) / 40) if len(filtered_channel_data) > 40 else 9
+        fig = plt.figure(figsize = (15, height), dpi = 300)
+        if height == 9:
+            height_ratio = [5, 2]
+        else:
+            height_ratio = [int(2/5 * height), 1]
+        gs = fig.add_gridspec(nrows = 2, ncols = (num_params - 2) * 8, height_ratios = height_ratio)
+
+        barcode = np.repeat(np.expand_dims(np.zeros_like(filtered_channel_data), axis=2), 4, axis=2)
+        for idx in range(len(all_entries)):
+            norm = norms[idx]
+            barcode[:,idx] = cmap(norm(filtered_channel_data[:,idx]))
+            norm_ax = fig.add_subplot(gs[1, 8 * idx: 8 * idx + 1])
+            cbar = norm_ax.figure.colorbar(mpl.cm.ScalarMappable(norm = norm, cmap = cmap), cax = norm_ax, orientation='vertical')
+            cbar.set_label(add_units(headers[idx]), size=8)
+            cbar.ax.tick_params(labelsize=8)
+            cbar.formatter.set_powerlimits((-2, 2))
             
+        plt.subplots_adjust(wspace=1, hspace=0.05)
         # Create a figure and axis
-        fig, ax = plt.subplots(figsize=(12, 9), dpi=300)
-    
+        barcode_ax = fig.add_subplot(gs[0, :])
         # Repeat each barcode to make it more visible
-        barcode_image = np.repeat(channel_agg_barcode, 5, axis=0)  # Adjust the repetition factor as needed
-    
+        barcode_image = np.repeat(barcode, 5, axis=0)  # Adjust the repetition factor as needed
+
         # Plot the stitched barcodes
-        ax.imshow(barcode_image, aspect='auto')
-        ax.axis('off')  # Turn off the axis
+        barcode_ax.imshow(barcode_image, aspect='auto')
+        barcode_ax.axis('off')  # Turn off the axis
         
         # Save or show the figure
         fig.savefig(channel_figpath, bbox_inches='tight', pad_inches=0)
+
+        if not separate:
+            break

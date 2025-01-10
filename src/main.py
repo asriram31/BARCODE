@@ -1,14 +1,5 @@
-from reader import read_file
-import os, csv, sys, yaml, time, functools, builtins
-from binarization import check_resilience
-from flow import check_flow
-from intensity_distribution_comparison import check_coarse
-import numpy as np
-from pathlib import Path
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from matplotlib import gridspec
-from barcoder import process_directory, execute_htp
+import sys, yaml
+from barcoder import process_directory
 from gooey import Gooey, GooeyParser
 from writer import generate_aggregate_csv
 
@@ -22,7 +13,6 @@ def main():
     fdc = gc.add_mutually_exclusive_group()
     fdc.add_argument('--file_path', metavar = 'File Selection', widget='FileChooser', gooey_options = {
         'wildcard': "Document (*.nd2)|*.nd2|"
-        "TIFF Image (*.tiff)|*.tiff|"
         "TIFF Image (*.tif)|*.tif"
     })
     fdc.add_argument('--dir_path', metavar='Folder Selection', widget='DirChooser')
@@ -99,12 +89,14 @@ def main():
     
     flow_settings.add_argument('--nm_pixel_ratio', metavar = 'Nanometer to Pixel Ratio', help = "Set the ratio of nanometers to pixels (leave at default if this is variable within your dataset)", widget= 'IntegerField', default = 1, gooey_options = {
         'min':1,
-        'increment':1
+        'increment':1,
+        'max': 10 ** 6
     })
     
     flow_settings.add_argument('--frame_interval', metavar = 'Frame Interval', help = "Set the interval (in seconds) between frames (leave at default if this is variable within your dataset", widget= 'IntegerField', default = 1, gooey_options = {
         'min':1,
-        'increment':1
+        'increment':1,
+        'max': 10 ** 3
     })
     
 
@@ -134,7 +126,15 @@ def main():
     })
     barcode_generator.add_argument('--generate_agg_barcode', metavar = 'Generate Aggregate Barcode', widget='CheckBox', help="Click to generate an aggregate barcode from these files", action="store_true")
     barcode_generator.add_argument('--normalize_agg_barcode', metavar = 'Normalize Aggregate Barcode', widget='CheckBox', help="Click to normalize the barcode (color will be determined by the limits of the dataset)", action='store_true')
-    
+
+    headers = ['Default', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
+            'Void Area Change', 'Island Area Change', 'Initial Island Area 1', 
+            'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Median Skewness', 
+            'Maximum Mode Skewness', 'Kurtosis Difference', 'Median Skewness Difference', 
+            'Mode Skewness Difference', 'Mean Speed', 'Speed Change',
+            'Mean Flow Direction', 'Flow Directional Spread']
+
+    barcode_generator.add_argument('--sort', metavar = 'Parameter Sort', widget = 'Dropdown', help='Select a parameter to sort the barcode on', choices = headers)
     
     
     settings = parser.parse_args()
@@ -145,7 +145,8 @@ def main():
 
         gen_barcode = settings.generate_agg_barcode
         normalize_data = settings.normalize_agg_barcode
-        generate_aggregate_csv(files, combined_csv_loc, gen_barcode, normalize_data)
+        sort_param = None if settings.sort == 'Default' else settings.sort
+        generate_aggregate_csv(files, combined_csv_loc, gen_barcode, normalize_data, sort_param)
         
     else:
         if not (settings.dir_path or settings.file_path):

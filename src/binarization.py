@@ -1,15 +1,8 @@
-from reader import read_file
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-import imageio.v3 as iio
-from nd2reader import ND2Reader
-import math, pims, yaml, gc, csv, os, glob, pickle, functools, builtins
-from numpy.polynomial import Polynomial
-
-from skimage import measure, io
+import csv, os, functools, builtins
 from skimage.measure import label, regionprops
-
 from scipy import ndimage
 
 class MyException(Exception):
@@ -43,13 +36,7 @@ def top_ten_average(lst):
 def check_span(frame):
     def check_connected(frame, axis=0):
         # Ensures that either connected across left-right or up-down axis
-        if axis == 0:
-            first = (frame[0] == 1).any()
-            last = (frame[-1] == 1).any()
-        elif axis == 1:
-            first = (frame[:,0] == 1).any()
-            last = (frame[:,-1] == 1).any()
-        else:
+        if not axis in [0, 1]:
             raise Exception("Axis must be 0 or 1.")
     
         struct = ndimage.generate_binary_structure(2, 2)
@@ -192,7 +179,7 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
 
     # Error Checking: Empty Image
     if (image == 0).all():
-        return [None] * 6
+        return [np.nan] * 6
     
     while len(image) <= frame_step:
         frame_step = int(frame_step / 5)
@@ -236,4 +223,4 @@ def check_resilience(file, name, channel, R_offset = 0.1, frame_step = 10, frame
         
     spanning = len([con for con in connected_lst if con == 1])/len(connected_lst)
 
-    return fig, [spanning, max_island_size, max_void_size, avg_void_percent_change, avg_island_percent_change, island_size_initial, island_size_initial2]
+    return fig, [spanning, max_island_size, max_void_size, avg_island_percent_change, avg_void_percent_change, island_size_initial, island_size_initial2]

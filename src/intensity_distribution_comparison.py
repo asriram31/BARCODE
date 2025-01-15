@@ -62,7 +62,7 @@ def calc_frame_metric(metric, data):
         mets.append(met)
     return mets
 
-def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, save_intermediates, verbose, ignore_saturation = True):
+def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, save_intermediates, verbose):
     flag = 0 # No flags have been tripped by the module
     print = functools.partial(builtins.print, flush=True)
     vprint = print if verbose else lambda *a, **k: None
@@ -82,29 +82,13 @@ def check_coarse(file, name, channel, first_frame, last_frame, frames_percent, s
     
     max_px_intensity = 1.1*np.max(im)
     bins_width = 3
-        
-    # i_frames_data, i_dropped_frames, i_final_index = populate_intensity_array(im, first_frame, first_frame+num_frames_analysis, ignore_saturation)
-
-    # if last_frame == False or last_frame >= len(im):
-    #     last_frame = len(im) - 1
-    #     f_frames_data, f_dropped_frames, f_final_index = populate_intensity_array(im, last_frame, last_frame - num_frames_analysis, ignore_saturation) 
-
-    # else:
-    #     f_frames_data, f_dropped_frames, f_final_index = populate_intensity_array(im, last_frame, last_frame - num_frames_analysis, ignore_saturation)
-    
-    # if i_dropped_frames == None or f_dropped_frames == None:
-    #     vprint("Entire video saturated, unable to process")
-    #     return None, [np.nan] * 6, 2
-    
-    # tot_dropped_frames = i_dropped_frames + f_dropped_frames
-
-    # if i_dropped_frames == len(im) or f_dropped_frames == len(im):
-    #     tot_dropped_frames = len(im)
-
-    # vprint(f"Number of dropped frames due to saturation: {tot_dropped_frames}; Range of Frames Explored: ({first_frame}, {i_final_index}) and ({f_final_index}, {last_frame})")
 
     i_frames_data = [im[i] for i in range(0, num_frames_analysis, 1)]
     f_frames_data = [im[i] for i in range(last_frame - num_frames_analysis, last_frame, 1)]
+
+    # Check for saturation, posts saturation flag (flag = 2) if mode and maximal intensity values are same
+    if [np.max(frame) == calc_mode(frame) for frame in i_frames_data + f_frames_data].all():
+        flag == 2
 
     if save_intermediates:
         filename = os.path.join(name, 'IntensityDistribution.csv')

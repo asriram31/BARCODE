@@ -3,15 +3,16 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 
+headers = [
+    'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
+    'Island Area Change', 'Void Area Change', 'Initial Island Area 1', 
+    'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Median Skewness', 
+    'Maximum Mode Skewness', 'Kurtosis Change', 'Median Skewness Change', 
+    'Mode Skewness Change', 'Mean Speed', 'Speed Change',
+    'Mean Flow Direction', 'Flow Directional Spread']
+
 def write_file(output_filepath, data):
     if data:
-        headers = [
-            'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
-            'Island Area Change', 'Void Area Change', 'Initial Island Area 1', 
-            'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Median Skewness', 
-            'Maximum Mode Skewness', 'Kurtosis Change', 'Median Skewness Change', 
-            'Mode Skewness Change', 'Mean Speed', 'Speed Change',
-            'Mean Flow Direction', 'Flow Directional Spread']
         with open(output_filepath, 'w', newline='', encoding="utf-8") as csvfile:
             csvwriter = csv.writer(csvfile)
             csvwriter.writerow(headers) # Write headers before the first filename
@@ -30,13 +31,7 @@ def write_file(output_filepath, data):
 def generate_aggregate_csv(filelist, csv_loc, gen_barcode, normalize, sort = None, separate_channel = False):
     if gen_barcode:
         combined_barcode_loc = os.path.join(os.path.dirname(csv_loc), f'{os.path.basename(csv_loc).removesuffix('.csv')} Barcode')
-        headers = [
-            'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
-            'Island Area Change', 'Void Area Change', 'Initial Island Area 1', 
-            'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Median Skewness', 
-            'Maximum Mode Skewness', 'Kurtosis Change', 'Median Skewness Change', 
-            'Mode Skewness Change', 'Mean Speed', 'Speed Change',
-            'Mean Flow Direction', 'Flow Directional Spread']
+        
     def combine_csvs(csv_list, keep_csv = False):
         if not keep_csv:
             with open(csv_loc, 'w', encoding="utf-8", newline="\n") as f:
@@ -96,15 +91,7 @@ def generate_aggregate_csv(filelist, csv_loc, gen_barcode, normalize, sort = Non
         csv_data_2 = csv_data[1:]
         gen_combined_barcode(csv_data_2, combined_barcode_loc, normalize, sort, separate_channel)
 
-def gen_combined_barcode(data, figpath, normalize_data = True, sort = None, separate = True):
-    headers = [
-            'Channel', 'Flags', 'Connectivity', 'Maximum Island Area', 'Maximum Void Area', 
-            'Island Area Change', 'Void Area Change', 'Initial Island Area 1', 
-            'Initial Island Area 2', 'Maximum Kurtosis', 'Maximum Median Skewness', 
-            'Maximum Mode Skewness', 'Kurtosis Change', 'Median Skewness Change', 
-            'Mode Skewness Change', 'Mean Speed', 'Speed Change',
-            'Mean Flow Direction', 'Flow Directional Spread']
-    
+def gen_combined_barcode(data, figpath, normalize_data = True, sort = None, separate = True):    
     def add_units(metric):
         percent_metrics = ['Maximum Island Area', 'Maximum Void Area', 'Initial Island Area 1', 'Initial Island Area 2']
         no_unit_metrics = ['Maximum Kurtosis', 'Maximum Median Skewness', 'Maximum Mode Skewness', 'Kurtosis Change', 'Median Skewness Change', 'Mode Skewness Change']
@@ -188,11 +175,6 @@ def gen_combined_barcode(data, figpath, normalize_data = True, sort = None, sepa
         norms.append(mpl.colors.Normalize(vmin = limits[i][0], vmax = limits[i][1]))
     cmap = plt.get_cmap('plasma')  # Colormap for floats
     cmap.set_bad("black")
-
-    def normalize(x, min_float, max_float):
-        if x == None or x == np.nan:
-            return None
-        return (x - min_float) / (max_float - min_float)
 
     for channel in unique_channels:
         if separate:
